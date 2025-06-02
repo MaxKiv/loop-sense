@@ -1,0 +1,3 @@
+- [ ] add control loop
+- [ ] communicate with nidaq
+- [ ] expand streamlit to fetch data from http requests
