@@ -1,7 +1,7 @@
 use loop_sense::appstate::{AppState, SensorData};
 use tokio::time::{self, Duration};
 
-const COMMUNICATION_PERIOD: Duration = Duration::from_millis(500);
+const COMMUNICATION_PERIOD: Duration = Duration::from_millis(100);
 
 pub async fn communicate_with_micro(state: AppState) {
     let mut interval = time::interval(COMMUNICATION_PERIOD);

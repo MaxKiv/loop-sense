@@ -1,13 +1,13 @@
 use std::sync::{Arc, Mutex};
 
-use chrono::{DateTime, offset::Local};
+use chrono::{DateTime, Utc};
 use rand::{random_bool, random_range};
 use serde::{Deserialize, Serialize};
 
 /// Sensor data from the micro controlling the Mockloop
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct SensorData {
-    experiment_time: DateTime<Local>,
+    experiment_time: DateTime<Utc>,
     pressure_systemic_preload: f64,
     pressure_systemic_afterload: f64,
     controller_regulator_actual_pressure: f64,
@@ -35,7 +35,7 @@ pub struct AppState {
 
 impl SensorData {
     pub fn simulate() -> Self {
-        let now = Local::now();
+        let now = Utc::now();
         SensorData {
             experiment_time: now,
             pressure_systemic_preload: random_range(0.0..=1.0),
