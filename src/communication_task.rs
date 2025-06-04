@@ -1,21 +1,16 @@
-use loop_sense::appstate::{AppState, SensorData};
+use loop_sense::{appstate::AppState, hardware::SensorData};
 use tokio::time::{self, Duration};
+use tracing::info;
 
-const COMMUNICATION_PERIOD: Duration = Duration::from_millis(100);
+const COMMUNICATION_PERIOD: Duration = Duration::from_millis(1000);
 const SIMULATE: bool = true;
 
 pub async fn communicate_with_micro(state: AppState) {
     let mut interval = time::interval(COMMUNICATION_PERIOD);
     loop {
         interval.tick().await;
-        send_setpoint(state.clone()).await;
         receive_data(state.clone()).await;
     }
-}
-
-async fn send_setpoint(state: AppState) {
-    let setpoint = state.setpoint.lock().unwrap();
-    println!("send state to micro: {:?}", setpoint);
 }
 
 async fn receive_data(state: AppState) {
@@ -25,5 +20,5 @@ async fn receive_data(state: AppState) {
     } else {
         // *data =
     }
-    println!("received data from micro: {:?}", data);
+    info!("received data from micro: {:?}", data);
 }

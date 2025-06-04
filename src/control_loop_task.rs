@@ -1,7 +1,9 @@
-use loop_sense::{appstate::AppState, controller::MockloopController};
+use loop_sense::{appstate::AppState, controller::MockloopController, nidaq::Nidaq};
+use tracing::info;
 
 pub async fn control_loop(state: AppState) {
-    let controller = NidaqController();
+    let controller = MockloopController::new(Nidaq {});
 
-    controller.run();
+    info!("Running controller");
+    controller.run(state).await;
 }

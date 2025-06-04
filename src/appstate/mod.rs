@@ -1,15 +1,12 @@
 use std::sync::{Arc, Mutex};
 
-use crate::hardware::{ActuatorSetpoint, SensorData};
+use crate::hardware::SensorData;
 
-/// All state involved in http communication
-/// NOTE: cloning a bunch of Arc is cheap
+/// All shared state involved in http and microcontroller communication
 #[derive(Debug, Default, Clone)]
 pub struct AppState {
-    /// Latest sensor data from the mockloop
+    /// Latest sensor data received from the mockloop
     pub sensor_data: Arc<Mutex<SensorData>>,
-    /// Latest setpoint for the micro controlling the mockloop
-    pub setpoint: Arc<Mutex<ActuatorSetpoint>>,
-    /// Whether the high level mockloop controller should be running
+    /// Should the mockloop pneumatic controller be enabled?
     pub enable_controller: Arc<Mutex<bool>>,
 }

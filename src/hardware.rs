@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use rand::{random_bool, random_range};
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 use thiserror::Error;
 use uom::si::{
     f32::{Pressure, VolumeRate},
@@ -8,8 +9,14 @@ use uom::si::{
     volume_rate::liter_per_minute,
 };
 
+#[derive(Debug)]
+pub enum Valve {
+    Left,
+    Right,
+}
+
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
-enum ValveState {
+pub enum ValveState {
     #[default]
     Closed,
 
@@ -84,16 +91,27 @@ pub enum MockloopHardwareError {
     CommunicationError(String),
 }
 
-pub trait MockloopHardware {
+pub trait MockloopHardware: Debug {
     fn initialize(&mut self) -> Result<(), MockloopHardwareError>;
-
-    fn set_actuators(&mut self, setpoints: ActuatorSetpoint) -> Result<(), MockloopHardwareError>;
 
     fn set_regulator_pressure(&mut self, pressure: Pressure) -> Result<(), MockloopHardwareError>;
 
     fn read_sensors(&mut self) -> Result<SensorData, MockloopHardwareError>;
 
     fn to_safe_state(&mut self) -> Result<(), MockloopHardwareError> {
-        self.set_actuators(ActuatorSetpoint::get_safe())
+        let safe_setpoint = ActuatorSetpoint::get_safe();
+        self.set_regulator_pressure(safe_setpoint.controller_pressure_regulator)
+            .unwrap();
+        self.set_valve(Valve::Left, safe_setpoint.controller_valve_left)
+            .unwrap();
+        self.set_valve(Valve::Right, safe_setpoint.controller_valve_right)
+            .unwrap();
+        Ok(())
     }
+
+    fn set_valve(
+        &mut self,
+        valve: Valve,
+        setpoint: ValveState,
+    ) -> Result<(), MockloopHardwareError>;
 }
