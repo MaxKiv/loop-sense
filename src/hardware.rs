@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use thiserror::Error;
 use uom::si::{
-    f32::{Pressure, VolumeRate},
+    f32::{Frequency, Pressure, VolumeRate},
     pressure::bar,
     volume_rate::liter_per_minute,
 };

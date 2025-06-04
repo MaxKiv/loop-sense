@@ -1,12 +1,45 @@
 use chrono::{DateTime, TimeDelta, Utc};
+use tokio::sync::watch::Receiver;
 use tokio::time::{self, Duration, Instant};
 use tracing::{info, instrument};
-use uom::si::{f32::Frequency, frequency::hertz};
+use uom::si::{
+    f32::{Frequency, Pressure},
+    frequency::hertz,
+    pressure::bar,
+};
 
 use crate::{
     appstate::AppState,
     hardware::{MockloopHardware, Valve, ValveState},
 };
+
+/// Setpoint for the mockloop controller
+#[derive(Debug, Clone)]
+pub struct ControllerSetpoint {
+    /// Should the mockloop controller be enabled?
+    pub enable: bool,
+    /// Desired heart rate
+    pub heart_rate: Frequency,
+    /// Desired regulator pressure
+    pub pressure: Pressure,
+    /// Control loop Frequency
+    pub loop_frequency: Frequency,
+    /// Ratio of systole duration to total cardiac phase duration
+    /// NOTE: usually 3/7
+    pub systole_ratio: f32,
+}
+
+impl ControllerSetpoint {
+    pub fn default() -> Self {
+        ControllerSetpoint {
+            enable: false,
+            heart_rate: Frequency::new::<hertz>(80.0 / 60.0),
+            pressure: Pressure::new::<bar>(0.0),
+            loop_frequency: Frequency::new::<hertz>(10.0),
+            systole_ratio: 3.0 / 7.0,
+        }
+    }
+}
 
 /// Phases of the heart ventricles
 /// Systole = ventricle contraction, Diastole = ventricle relaxation
@@ -38,29 +71,26 @@ enum ControllerState {
 pub struct MockloopController<T: MockloopHardware> {
     // Mockloop hardware interface
     hw: T,
+    // Receives controller setpoints from other parts of the application
+    setpoint_receiver: Receiver<ControllerSetpoint>,
     // Current mockloop controller state
     state: ControllerState,
-    // Control loop Frequency
-    loop_frequency: Frequency,
     // Time at last cycle
     last_cycle_time: DateTime<Utc>,
-    // Desired heart rate
-    heart_rate: Frequency,
     // Current cardiac phase
     current_cardiac_phase: CardiacPhases,
     // Time spent in current cardiac phase
     time_spent_in_current_phase: TimeDelta,
-    // Ratio of systole duration to total cardiac phase duration
-    // NOTE: usually 3/7
-    systole_ratio: f32,
 }
 
 impl<T> MockloopController<T>
 where
     T: MockloopHardware,
 {
-    pub fn new(mut hw: T) -> Self {
+    /// Initialize a new controller with the given hardware interface and setpoint receiver
+    pub fn new(mut hw: T, setpoint_receiver: Receiver<ControllerSetpoint>) -> Self {
         info!("Initialize controller");
+
         // Initialize hardware
         if let Err(err) = hw.initialize() {
             todo!("properly handle hardware initialize error: {err}");
@@ -68,33 +98,38 @@ where
 
         MockloopController {
             state: ControllerState::PreOp,
-            loop_frequency: Frequency::new::<hertz>(10.0),
-            heart_rate: Frequency::new::<hertz>(80.0 / 60.0),
             last_cycle_time: Utc::now(),
             current_cardiac_phase: CardiacPhases::Systole,
             time_spent_in_current_phase: TimeDelta::zero(),
-            systole_ratio: 3.0 / 7.0,
+            setpoint_receiver,
             hw,
         }
     }
 
     /// Run the MockloopController
-    #[instrument(skip(app_state, self))]
-    pub async fn run(mut self, app_state: AppState) {
+    #[instrument(skip(self))]
+    pub async fn run(mut self) {
+        // Obtain the initial controller setpoint
+        let initial_setpoint = self.setpoint_receiver.borrow_and_update();
+
         // Calculate the desired control loop interval
-        let period: f32 = 1.0 / self.loop_frequency.get::<hertz>();
+        let period: f32 = 1.0 / initial_setpoint.loop_frequency.get::<hertz>();
         let mut next_tick_time = Instant::now() + Duration::from_secs_f32(period);
 
         // Run the control loop
         loop {
-            if !*app_state.enable_controller.lock().unwrap() {
+            // Fetch the latest available controller setpoint
+            let setpoint = self.setpoint_receiver.borrow();
+
+            // Use it to control the mockloop
+            if setpoint.enable {
+                // Controller enabled -> tick the controller state machine
+                self.tick(setpoint).await;
+            } else {
                 // Set control loop to pre operation while controller is disabled
                 self.state = ControllerState::PreOp;
-                // Make sure mockloop is in safe position
+                // Make sure mockloop is in safe position when disabled
                 self.hw.to_safe_state().unwrap();
-            } else {
-                // Controller enabled -> tick the controller state machine
-                self.tick(app_state.clone()).await;
             }
 
             // Time bookkeeping
@@ -104,16 +139,16 @@ where
             // Preempt until desired control loop interval has passed
             tokio::time::sleep_until(next_tick_time).await;
 
-            let period: f32 = 1.0 / self.loop_frequency.get::<hertz>();
+            let period: f32 = 1.0 / setpoint.loop_frequency.get::<hertz>();
             next_tick_time += Duration::from_secs_f32(period);
         }
     }
 
     /// Single tick of the controller state machine
-    pub async fn tick(&mut self, app_state: AppState) {
+    pub async fn tick(&mut self, setpoint: ControllerSetpoint) {
         match &self.state {
             ControllerState::PreOp => self.preop(),
-            ControllerState::Op => self.op(app_state),
+            ControllerState::Op => self.op(setpoint),
             ControllerState::Err => self.err(),
         };
     }
@@ -144,14 +179,14 @@ where
     }
 
     /// Operational logic, control ventricles and pressure regulator
-    fn op(&mut self, app_state: AppState) {
+    fn op(&mut self, setpoint: ControllerSetpoint) {
         info!(state = "OP");
-        self.control_ventricles(app_state.clone());
-        self.control_pressure_regulator(app_state);
+        self.control_ventricles();
+        self.control_pressure_regulator(setpoint);
     }
 
     /// Set pressure regulator to the latest setpoint received for it
-    fn control_pressure_regulator(&mut self, app_state: AppState) {
+    fn control_pressure_regulator(&mut self, setpoint: ControllerSetpoint) {
         // Blocking acquire the setpoint mutex and send the required regulator pressure, if this fails
         // we do nothing but hope the next state machine run correctly picks up the setpoint
         if let Ok(setpoint) = app_state.setpoint.lock() {
@@ -169,7 +204,7 @@ where
     }
 
     /// Control the ventricle pneumatic valves in such a way the heart beats at the desired heartrate
-    fn control_ventricles(&mut self, app_state: AppState) {
+    fn control_ventricles(&mut self) {
         // Time bookkeeping
         let current_time = Utc::now();
         self.time_spent_in_current_phase += current_time - self.last_cycle_time;
