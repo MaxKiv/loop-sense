@@ -7,7 +7,13 @@ use axum::{
 };
 use communication_task::communicate_with_micro;
 use control_loop_task::control_loop;
-use loop_sense::{appstate::AppState, enable_control, get_data, update_control};
+use loop_sense::{
+    appstate::AppState,
+    communicator::passthrough::PassThroughCommunicator,
+    controller::{backend::mockloop_hardware::SensorData, mockloop_controller::ControllerSetpoint},
+    http::{get_data, post_setpoint},
+};
+use std::sync::{Arc, Mutex};
 use tokio::task;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
@@ -16,32 +22,39 @@ use tracing_subscriber::FmtSubscriber;
 #[tokio::main]
 async fn main() {
     // Initialize application state
-    let state = AppState::default();
+    // We are using tokio channels/watches to communicate between tasks
+    let initial_setpoint = ControllerSetpoint::default();
+    let initial_data = SensorData::default();
 
-    // *state.enable_controller.lock().unwrap() = true;
+    let state = AppState {
+        controller_setpoint: Arc::new(Mutex::new(initial_setpoint)),
+        sensor_data: Arc::new(Mutex::new(initial_data)),
+    };
 
     // Set up tracing logs
     let subscriber = FmtSubscriber::builder()
         // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
         // will be written to stdout.
         .with_max_level(Level::INFO)
-        // completes the builder.
         .finish();
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("setting default tracing subscriber failed");
 
     // Set up Axum routers
     let app = Router::new()
         // GET router to access new sensor data over http
         .route("/data", get(get_data))
         // POST router to update control setpoints over http
-        .route("/enable", post(enable_control))
+        .route("/setpoint", post(post_setpoint))
         // Give the routers access to the application state
         .with_state(state.clone());
 
     // Delegate all microcontroller communication to a separate tokio task
-    task::spawn(communicate_with_micro(state.clone()));
-    // Start the control loop
-    task::spawn(control_loop(state.clone()));
+    let (communicator, receiver) = PassThroughCommunicator::new_with_receiver();
+    task::spawn(communicate_with_micro(communicator, state.clone()));
+
+    // Start the control loop in a separate task
+    task::spawn(control_loop(receiver));
 
     // Start serving requests
     info!("Axum Router & communication task initialised");

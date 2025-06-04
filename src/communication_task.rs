@@ -1,24 +1,29 @@
-use loop_sense::{appstate::AppState, hardware::SensorData};
-use tokio::time::{self, Duration};
-use tracing::info;
+use loop_sense::appstate::AppState;
+use loop_sense::communicator::mockloop_communicator::MockloopCommunicator;
+use tokio::time::{self, Duration, Instant};
 
-const COMMUNICATION_PERIOD: Duration = Duration::from_millis(1000);
-const SIMULATE: bool = true;
+const COMMS_LOOP_PERIOD_MS: u64 = 100;
 
-pub async fn communicate_with_micro(state: AppState) {
-    let mut interval = time::interval(COMMUNICATION_PERIOD);
+pub async fn communicate_with_micro<C: MockloopCommunicator>(mut communicator: C, state: AppState) {
+    let mut next_tick_time = Instant::now() + Duration::from_millis(COMMS_LOOP_PERIOD_MS);
     loop {
-        interval.tick().await;
-        receive_data(state.clone()).await;
-    }
-}
+        // TODO: use tokio select instead of awaiting communicator sequentially
 
-async fn receive_data(state: AppState) {
-    let mut data = state.sensor_data.lock().unwrap();
-    if SIMULATE {
-        *data = SensorData::simulate();
-    } else {
-        // *data =
+        // read latest setpoint and forward to hardware
+        let setpoint = state
+            .controller_setpoint
+            .lock()
+            .expect("Unable to lock controller_setpoint mutex in communicate_with_micro")
+            .clone();
+        communicator.send_setpoint(setpoint).await;
+
+        // receive from hardware and forward to channel
+        let data = communicator.receive_data().await;
+        if let Ok(mut sensor_data) = state.sensor_data.lock() {
+            *sensor_data = data
+        }
+
+        next_tick_time += Duration::from_millis(COMMS_LOOP_PERIOD_MS);
+        time::sleep_until(next_tick_time).await;
     }
-    info!("received data from micro: {:?}", data);
 }
