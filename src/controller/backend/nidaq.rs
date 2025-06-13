@@ -134,44 +134,44 @@ impl MockloopHardware for Nidaq {
 
         let pulmonary_flow = self.pulmonary_flow_task.read_analog()?.data.mean().unwrap();
 
-        Ok(SensorData::new(
-            Utc::now(),
-            voltage_to_pressure(
+        Ok(SensorData {
+            experiment_time: Utc::now(),
+            pressure_systemic_preload: voltage_to_pressure(
                 pressure_systemic_preload,
                 0.0,
                 5.0,
                 Pressure::new::<bar>(0.0),
                 Pressure::new::<bar>(1.0),
             )?,
-            voltage_to_pressure(
+            pressure_systemic_afterload: voltage_to_pressure(
                 pressure_systemic_afterload,
                 0.0,
                 5.0,
                 Pressure::new::<bar>(0.0),
                 Pressure::new::<bar>(1.0),
             )?,
-            voltage_to_pressure(
+            controller_regulator_actual_pressure: voltage_to_pressure(
                 regulator_actual_pressure,
                 0.0,
                 10.0,
                 Pressure::new::<bar>(0.0),
                 Pressure::new::<bar>(2.0),
             )?,
-            voltage_to_flow(
+            systemic_flow: voltage_to_flow(
                 systemic_flow,
                 0.0,
                 10.0,
                 VolumeRate::new::<liter_per_minute>(0.0),
                 VolumeRate::new::<liter_per_minute>(60.0),
             )?,
-            voltage_to_flow(
+            pulmonary_flow: voltage_to_flow(
                 pulmonary_flow,
                 0.0,
                 10.0,
                 VolumeRate::new::<liter_per_minute>(0.0),
                 VolumeRate::new::<liter_per_minute>(60.0),
             )?,
-        ))
+        })
     }
 
     fn set_valve(

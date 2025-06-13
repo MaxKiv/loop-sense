@@ -23,41 +23,19 @@ pub enum ValveState {
 }
 
 /// Sensor data from the micro controlling the Mockloop
-#[derive(Debug, Clone, Serialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SensorData {
-    experiment_time: DateTime<Utc>,
-    pressure_systemic_preload: Pressure,
-    pressure_systemic_afterload: Pressure,
-    controller_regulator_actual_pressure: Pressure,
-    systemic_flow: VolumeRate,
-    pulmonary_flow: VolumeRate,
+    pub experiment_time: DateTime<Utc>,
+    pub pressure_systemic_preload: Pressure,
+    pub pressure_systemic_afterload: Pressure,
+    pub controller_regulator_actual_pressure: Pressure,
+    pub systemic_flow: VolumeRate,
+    pub pulmonary_flow: VolumeRate,
     // controller_valve_left: ValveState,
     // controller_valve_right: ValveState,
 }
 
 impl SensorData {
-    pub fn new(
-        experiment_time: DateTime<Utc>,
-        pressure_systemic_preload: Pressure,
-        pressure_systemic_afterload: Pressure,
-        controller_regulator_actual_pressure: Pressure,
-        systemic_flow: VolumeRate,
-        pulmonary_flow: VolumeRate,
-        // controller_valve_left: ValveState,
-        // controller_valve_right: ValveState,
-    ) -> Self {
-        Self {
-            experiment_time,
-            pressure_systemic_preload,
-            pressure_systemic_afterload,
-            controller_regulator_actual_pressure,
-            systemic_flow,
-            pulmonary_flow,
-            // controller_valve_left,
-            // controller_valve_right,
-        }
-    }
-
     pub fn simulate() -> Self {
         let now = Utc::now();
         SensorData {

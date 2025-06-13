@@ -13,7 +13,6 @@ pub struct PassThroughCommunicator {
 #[async_trait::async_trait]
 impl MockloopCommunicator for PassThroughCommunicator {
     async fn receive_data(&mut self) -> SensorData {
-        
         // info!("Simulated communicator received data: {:?}", out);
         SensorData::simulate()
     }

@@ -2,6 +2,9 @@
 help:
     @just --list
 
+run:
+    cargo run --features sim
+
 # send a test controller setpoint using curl
 post:
     curl -X POST http://localhost:8000/setpoint      -H "Content-Type: application/json"      -d "{\"enable\":true,\"heart_rate\":2.3333334,\"pressure\":0.2,\"loop_frequency\":100.0,\"systole_ratio\":0.42857143}"
@@ -9,3 +12,23 @@ post:
 # get sensor data using curl
 get:
     curl -X GET http://localhost:8000/data
+
+run-db:
+    influxdb3 serve --bearer-token 3ba49996a6de5af183b4e05326b2e13642c7300540d9e2a0b8908bb62275148dd45ef1f39a867e81709d7da42bda7d57edf9cd0cfa1b864fc00278f5b0c93182 --node-id host01   --object-store file   --data-dir ./.influxdb3
+
+mem-db:
+    influxdb3 serve --bearer-token 3ba49996a6de5af183b4e05326b2e13642c7300540d9e2a0b8908bb62275148dd45ef1f39a867e81709d7da42bda7d57edf9cd0cfa1b864fc00278f5b0c93182 --node-id host01 --object-store memory && \
+    influxdb3 create database mockloop_data --token apiv3_5zB9k-A7Eora5iMy3epTdWi6NjaRzTvF2jx1mprt98l2z4eOl2tyZTLdnjHzzmqB4kwD_z681ynKVaSXf4Lvcw
+
+# INFLUXDB3_AUTH_TOKEN=apiv3_5zB9k-A7Eora5iMy3epTdWi6NjaRzTvF2jx1mprt98l2z4eOl2tyZTLdnjHzzmqB4kwD_z681ynKVaSXf4Lvcw influxdb3 write --database mockloop_data --token apiv3_5zB9k-A7Eora5iMy3epTdWi6NjaRzTvF2jx1mprt98l2z4eOl2tyZTLdnjHzzmqB4kwD_z681ynKVaSXf4Lvcw --precision ns --accept-partial --file sensor_data.lp && \
+write-db:
+    INFLUXDB3_AUTH_TOKEN=apiv3_5zB9k-A7Eora5iMy3epTdWi6NjaRzTvF2jx1mprt98l2z4eOl2tyZTLdnjHzzmqB4kwD_z681ynKVaSXf4Lvcw influxdb3 write --database mockloop_data --token apiv3_5zB9k-A7Eora5iMy3epTdWi6NjaRzTvF2jx1mprt98l2z4eOl2tyZTLdnjHzzmqB4kwD_z681ynKVaSXf4Lvcw --precision ns --accept-partial --file sequence.lp
+
+show-db:
+    INFLUXDB3_AUTH_TOKEN=apiv3_5zB9k-A7Eora5iMy3epTdWi6NjaRzTvF2jx1mprt98l2z4eOl2tyZTLdnjHzzmqB4kwD_z681ynKVaSXf4Lvcw influxdb3 query --database mockloop_data "SELECT * from mockloop_data"
+
+sequence-db:
+    INFLUXDB3_AUTH_TOKEN=apiv3_5zB9k-A7Eora5iMy3epTdWi6NjaRzTvF2jx1mprt98l2z4eOl2tyZTLdnjHzzmqB4kwD_z681ynKVaSXf4Lvcw influxdb3 query --database mockloop_data "SELECT * from sequence"
+
+tables-db:
+    INFLUXDB3_AUTH_TOKEN=apiv3_5zB9k-A7Eora5iMy3epTdWi6NjaRzTvF2jx1mprt98l2z4eOl2tyZTLdnjHzzmqB4kwD_z681ynKVaSXf4Lvcw influxdb3 query --database mockloop_data "SHOW TABLES"
