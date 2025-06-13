@@ -7,6 +7,7 @@ edition = "2024"
 async-trait = "0.1.88"
 axum = { version = "0.8.4", features = ["macros"] }
 chrono = { version = "0.4.41", features = ["serde"] }
+influxdb = { version = "0.7.2", features = ["derive"] }
 ndarray = { version = "0.16.1", features = ["serde"] }
 rand = "0.9.1"
 serde = { version = "1.0.219", features = ["derive"] }
