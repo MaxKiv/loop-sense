@@ -14,7 +14,7 @@ pub async fn communicate_with_micro<C: MockloopCommunicator>(
 ) {
     let mut next_tick_time = Instant::now() + COMMS_LOOP_PERIOD;
     loop {
-        // TODO: use tokio select instead of awaiting communicator sequentially
+        // TODO: use tokio select instead of awaiting communicator sequentially?
 
         // read latest setpoint and forward to hardware
         let setpoint = state
@@ -24,14 +24,14 @@ pub async fn communicate_with_micro<C: MockloopCommunicator>(
             .clone();
         communicator.send_setpoint(setpoint).await;
 
-        // receive from hardware and forward to channel
+        // receive from hardware and forward to controller
         let data = communicator.receive_data().await;
         if let Ok(mut sensor_data) = state.sensor_data.lock() {
             *sensor_data = data.clone()
         }
 
         // Send sensor data received from the microcontroller to the database task to be logged
-        warn!("micro comms sending: {:?}", data.clone());
+        info!("micro comms sending: {:?}", data.clone());
         if let Err(err) = db_sender.send(data).await {
             error!("micro comms send error: {:?}", err);
         }
