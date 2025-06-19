@@ -1,2 +1,2 @@
-pub const GET_CURRENT_SEQUENCE: &str = "SELECT current FROM sequence ORDER BY time DESC LIMIT 1;";
-pub const CREATE_TABLE: &str = "SELECT current FROM sequence ORDER BY time DESC LIMIT 1;";
+pub const GET_LATEST_MEASUREMENT_ID: &str =
+    "SELECT * FROM measurement_id ORDER BY time DESC LIMIT 1;";
