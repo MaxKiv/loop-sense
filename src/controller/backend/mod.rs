@@ -1,3 +1,7 @@
 pub mod mockloop_hardware;
-pub mod nidaq;
+
+#[cfg(feature = "sim")]
 pub mod sim;
+
+#[cfg(feature = "nidaq")]
+pub mod nidaq;

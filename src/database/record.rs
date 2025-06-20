@@ -4,7 +4,7 @@ use uom::si::{pressure::bar, volume_rate::liter_per_minute};
 
 use crate::controller::backend::mockloop_hardware::SensorData;
 
-#[derive(Debug, InfluxDbWriteable)]
+#[derive(Clone, Debug, InfluxDbWriteable)]
 pub struct SensorDataRecord {
     time: DateTime<Utc>,
     pressure_systemic_preload: f64,
