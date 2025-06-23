@@ -1,20 +1,23 @@
 use chrono::{DateTime, TimeDelta, Utc};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use tokio::sync::watch::Receiver;
 use tokio::time::{Duration, Instant};
-use tracing::{info, instrument};
+use tracing::{debug, error, info, instrument, warn};
 use uom::si::{
     f64::{Frequency, Pressure},
-    frequency::hertz,
+    frequency::{cycle_per_minute, hertz},
     pressure::bar,
 };
 
-use crate::controller::backend::mockloop_hardware::{Valve, ValveState};
+use crate::controller::backend::mockloop_hardware::{
+    REGULATOR_MIN_PRESSURE_BAR, Valve, ValveState,
+};
 
 use super::backend::mockloop_hardware::MockloopHardware;
 
 /// Setpoint for the mockloop controller
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct ControllerSetpoint {
     /// Should the mockloop controller be enabled?
     pub enable: bool,
@@ -27,6 +30,21 @@ pub struct ControllerSetpoint {
     /// Ratio of systole duration to total cardiac phase duration
     /// NOTE: usually 3/7
     pub systole_ratio: f64,
+}
+
+impl fmt::Debug for ControllerSetpoint {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Point")
+            .field("enable", &self.enable)
+            .field(
+                "heart_rate (BPM)",
+                &self.heart_rate.get::<cycle_per_minute>(),
+            )
+            .field("pressure (bar)", &self.pressure.get::<bar>())
+            .field("loop_frequency (Hz)", &self.loop_frequency.get::<hertz>())
+            .field("systole_ratio", &self.systole_ratio)
+            .finish()
+    }
 }
 
 impl Default for ControllerSetpoint {
@@ -120,7 +138,11 @@ where
         loop {
             // Fetch the latest available controller setpoint
             let setpoint = self.setpoint_receiver.borrow().clone();
-            info!("received controller setpoint: {:?}", setpoint);
+            info!("current controller setpoint: {:?}", setpoint);
+            info!(
+                "current heart rate setpoint {} cycles per minute",
+                setpoint.heart_rate.get::<cycle_per_minute>()
+            );
 
             // Use it to control the mockloop
             if setpoint.enable {
@@ -157,7 +179,7 @@ where
     /// Pre operation logic, actuate mockloop into safe state, reset cardiac phase time tracking
     /// and transition to Operational
     fn preop(&mut self) {
-        info!(state = "PREOP");
+        debug!(state = "PREOP");
 
         // Make sure the mockloop is in a safe state
         self.hw.to_safe_state().unwrap();
@@ -171,7 +193,7 @@ where
 
     /// Error state logic, unrecoverable
     fn err(&mut self) {
-        info!(state = "ERR");
+        debug!(state = "ERR");
 
         // Make sure the mockloop is in a safe state
         self.hw.to_safe_state().unwrap();
@@ -181,16 +203,28 @@ where
 
     /// Operational logic, control ventricles and pressure regulator
     fn op(&mut self, setpoint: ControllerSetpoint) {
-        info!(state = "OP");
+        debug!(state = "OP");
         self.control_pressure_regulator(setpoint.pressure);
         self.control_ventricles(setpoint);
     }
 
     /// Set pressure regulator to the latest setpoint received for it
     fn control_pressure_regulator(&mut self, pressure: Pressure) {
-        info!(state = "OP", "Setting regulator pressure: {:?}", pressure);
+        debug!(state = "OP", "Setting regulator pressure: {:?}", pressure);
         if let Err(err) = self.hw.set_regulator_pressure(pressure) {
-            todo!("handle errors correctly");
+            error!(
+                "Unable to set controller regulator pressure to {:?} bar: {:?}",
+                pressure.get::<bar>(),
+                err
+            );
+            // An invalid regulator pressure setpoint was given, set to safe value
+            let _ = self
+                .hw
+                .set_regulator_pressure(Pressure::new::<bar>(REGULATOR_MIN_PRESSURE_BAR));
+            warn!(
+                "Set controller regulator presesure to safe value: {:?} bar",
+                REGULATOR_MIN_PRESSURE_BAR
+            );
         }
     }
 
@@ -199,7 +233,7 @@ where
         // Time bookkeeping
         let current_time = Utc::now();
         self.time_spent_in_current_phase += current_time - self.last_cycle_time;
-        info!(
+        debug!(
             "time spent in current cardiac phase: {:?}",
             self.time_spent_in_current_phase
         );
@@ -214,7 +248,7 @@ where
         ))
         .unwrap();
 
-        info!(
+        debug!(
             "Current phase duration {:?}",
             current_cardiac_phase_duration
         );

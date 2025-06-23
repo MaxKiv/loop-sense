@@ -10,7 +10,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use tokio::sync::mpsc::Receiver;
 use tokio::time::{self, Duration, Instant};
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 const DB_LOOP_PERIOD_MS: Duration = Duration::from_millis(100);
 const QUERY_BATCH_LEN: usize = 100;
@@ -53,7 +53,7 @@ pub async fn communicate_with_db(mut db_receiver: Receiver<SensorData>) {
         if let Some(sensor_data) = db_receiver.recv().await {
             // Batch received measurements
             batched_data.push(SensorDataRecord::from(sensor_data));
-            info!("batched_query {:?}", batched_data);
+            debug!("batched_query {:?}", batched_data);
         } else {
             error!("DB write error: unable to receive sensor date - Receiver is closed");
         }

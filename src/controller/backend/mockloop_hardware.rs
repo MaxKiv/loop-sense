@@ -8,6 +8,8 @@ use uom::si::{
     volume_rate::liter_per_minute,
 };
 
+pub const REGULATOR_MIN_PRESSURE_BAR: f64 = 0.02;
+
 #[derive(Debug)]
 pub enum Valve {
     Left,
@@ -64,7 +66,7 @@ impl Default for ActuatorSetpoint {
         Self {
             controller_valve_left: Default::default(),
             controller_valve_right: Default::default(),
-            controller_pressure_regulator: Pressure::new::<bar>(0.0),
+            controller_pressure_regulator: Pressure::new::<bar>(REGULATOR_MIN_PRESSURE_BAR),
         }
     }
 }
@@ -87,12 +89,9 @@ pub trait MockloopHardware: Debug {
 
     fn to_safe_state(&mut self) -> Result<(), MockloopHardwareError> {
         let safe_setpoint = ActuatorSetpoint::get_safe();
-        self.set_regulator_pressure(safe_setpoint.controller_pressure_regulator)
-            .unwrap();
-        self.set_valve(Valve::Left, safe_setpoint.controller_valve_left)
-            .unwrap();
-        self.set_valve(Valve::Right, safe_setpoint.controller_valve_right)
-            .unwrap();
+        self.set_regulator_pressure(safe_setpoint.controller_pressure_regulator)?;
+        self.set_valve(Valve::Left, safe_setpoint.controller_valve_left)?;
+        self.set_valve(Valve::Right, safe_setpoint.controller_valve_right)?;
         Ok(())
     }
 

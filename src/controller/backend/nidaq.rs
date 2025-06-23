@@ -1,6 +1,6 @@
 use crate::nidaq::nidaq_sys::{NidaqError, Task};
 use chrono::Utc;
-use tracing::info;
+use tracing::{debug, error, info};
 use uom::si::{
     f64::{Pressure, VolumeRate},
     pressure::bar,
@@ -9,7 +9,11 @@ use uom::si::{
 
 use crate::controller::backend::mockloop_hardware::SensorData;
 
-use super::mockloop_hardware::{MockloopHardware, MockloopHardwareError, Valve, ValveState};
+use super::mockloop_hardware::{
+    MockloopHardware, MockloopHardwareError, REGULATOR_MIN_PRESSURE_BAR, Valve, ValveState,
+};
+
+const DEVICE: &str = "dev1";
 
 #[derive(Debug)]
 pub struct Nidaq {
@@ -28,16 +32,16 @@ pub struct Nidaq {
 impl Nidaq {
     pub fn try_new() -> Result<Self, NidaqError> {
         Ok(Nidaq {
-            pressure_systemic_preload_task: Task::new()?,
-            pressure_systemic_afterload_task: Task::new()?,
-            // pressure_pulmonary_preload_task: Task::new()?,
-            // pressure_pulmonary_afterload_task: Task::new()?,
-            regulator_actual_pressure_task: Task::new()?,
-            systemic_flow_task: Task::new()?,
-            pulmonary_flow_task: Task::new()?,
-            set_valve_left_task: Task::new()?,
-            set_valve_right_task: Task::new()?,
-            regulator_set_pressure_task: Task::new()?,
+            pressure_systemic_preload_task: Task::new(DEVICE)?,
+            pressure_systemic_afterload_task: Task::new(DEVICE)?,
+            // pressure_pulmonary_preload_task: Task::new(DEVICE)?,
+            // pressure_pulmonary_afterload_task: Task::new(DEVICE)?,
+            regulator_actual_pressure_task: Task::new(DEVICE)?,
+            systemic_flow_task: Task::new(DEVICE)?,
+            pulmonary_flow_task: Task::new(DEVICE)?,
+            set_valve_left_task: Task::new(DEVICE)?,
+            set_valve_right_task: Task::new(DEVICE)?,
+            regulator_set_pressure_task: Task::new(DEVICE)?,
         })
     }
 }
@@ -86,19 +90,29 @@ impl MockloopHardware for Nidaq {
         self.set_valve_right_task
             .add_do_chan("port0/line1", "valve_right")?;
         self.regulator_set_pressure_task.add_ao_voltage_chan(
-            "ai3",
+            "ao0",
             "regulator_set_pressure",
             0.0,
             10.0,
         )?;
 
+        self.pressure_systemic_preload_task.start()?;
+        self.pressure_systemic_afterload_task.start()?;
+        self.regulator_actual_pressure_task.start()?;
+        self.systemic_flow_task.start()?;
+        self.pulmonary_flow_task.start()?;
+        self.set_valve_left_task.start()?;
+        self.set_valve_right_task.start()?;
+        self.regulator_set_pressure_task.start()?;
+
         Ok(())
     }
 
     fn set_regulator_pressure(&mut self, pressure: Pressure) -> Result<(), MockloopHardwareError> {
+        debug!("setting regulator pressure {:?}", pressure);
         let pressure = pressure_to_voltage(
             pressure,
-            Pressure::new::<bar>(0.02),
+            Pressure::new::<bar>(REGULATOR_MIN_PRESSURE_BAR),
             Pressure::new::<bar>(2.0),
             0.0,
             10.0,

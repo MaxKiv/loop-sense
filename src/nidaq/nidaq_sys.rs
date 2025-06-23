@@ -1,4 +1,5 @@
 use std::{ffi::CString, ptr};
+use tracing::error;
 
 use chrono::Duration;
 use ndarray::Array2;
@@ -31,6 +32,7 @@ pub struct NidaqError(pub String);
 /// Nidaqmx task wrapper
 /// Note: currently only a single channel per task is supported
 pub struct Task {
+    device: &'static str,
     handle: TaskHandle,
     channel: Option<Channel>,
 }
@@ -62,13 +64,14 @@ pub struct NidaqDigitalReading {
 unsafe impl Send for Task {}
 
 impl Task {
-    pub fn new() -> Result<Self, NidaqError> {
+    pub fn new(device: &'static str) -> Result<Self, NidaqError> {
         let mut handle = std::ptr::null_mut();
         unsafe {
             let err = DAQmxCreateTask(ptr::null(), &mut handle);
             check_err(err)?;
         }
         Ok(Task {
+            device,
             handle,
             channel: None,
         })
@@ -97,8 +100,9 @@ impl Task {
         min: f64,
         max: f64,
     ) -> Result<(), NidaqError> {
-        let c_channel = CString::new(channel)
+        let c_channel = CString::new(format!("{}/{}", self.device, channel))
             .map_err(|_| NidaqError("Null char in channel name".to_owned()))?;
+        error!("nidaqmx-sys: adding channel: {:?}", c_channel);
 
         unsafe {
             let err = DAQmxCreateAIVoltageChan(
@@ -131,8 +135,9 @@ impl Task {
         min: f64,
         max: f64,
     ) -> Result<(), NidaqError> {
-        let c_channel = CString::new(channel)
+        let c_channel = CString::new(format!("{}/{}", self.device, channel))
             .map_err(|_| NidaqError("Null char in channel name".to_owned()))?;
+        error!("nidaqmx-sys: adding channel: {:?}", c_channel);
 
         unsafe {
             let err = DAQmxCreateAOVoltageChan(
@@ -162,8 +167,9 @@ impl Task {
         channel: &'static str,
         name: &'static str,
     ) -> Result<(), NidaqError> {
-        let c_channel = CString::new(channel)
-            .map_err(|_| NidaqError("Null char in lines descriptor".to_owned()))?;
+        let c_channel = CString::new(format!("{}/{}", self.device, channel))
+            .map_err(|_| NidaqError("Null char in channel name".to_owned()))?;
+        error!("nidaqmx-sys: adding channel: {:?}", c_channel);
 
         unsafe {
             let err = DAQmxCreateDIChan(
@@ -190,8 +196,9 @@ impl Task {
         channel: &'static str,
         name: &'static str,
     ) -> Result<(), NidaqError> {
-        let c_channel = CString::new(channel)
-            .map_err(|_| NidaqError("Null char in lines descriptor".to_owned()))?;
+        let c_channel = CString::new(format!("{}/{}", self.device, channel))
+            .map_err(|_| NidaqError("Null char in channel name".to_owned()))?;
+        error!("nidaqmx-sys: adding channel: {:?}", c_channel);
 
         unsafe {
             let err = DAQmxCreateDOChan(

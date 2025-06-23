@@ -102,6 +102,10 @@
       # Development shells provided by this flake, to use:
       # nix develop .#default
       devShell = pkgs.mkShell {
+        # Required by the nidaqmx lib
+        LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [pkgs.stdenv.cc.cc];
+        RUST_BACKTRACE = "full";
+
         buildInputs = with pkgs; [
           zig_0_13 # zig toolchain, used to compile Windows MSVC binaries
           nil # Nix LSP
@@ -117,6 +121,7 @@
 
       packages = {
         default = buildForTarget "x86_64-unknown-linux-gnu" "sim";
+        nidaq = buildForTarget "x86_64-unknown-linux-gnu" "nidaq";
         windows-gnu = buildForTarget "x86_64-pc-windows-gnu" "nidaq";
         windows-msvc = buildForTarget "x86_64-pc-windows-msvc" "nidaq";
       };
