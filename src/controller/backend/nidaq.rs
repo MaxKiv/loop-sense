@@ -1,6 +1,10 @@
-use crate::nidaq::nidaq_sys::{NidaqError, Task};
+use crate::nidaq::{
+    bindings::nidaqmx_bindings::{DAQmxCreateTask, TaskHandle},
+    nidaq_sys::{Channel, NidaqError, Task, check_err},
+};
+use anyhow::Result;
 use chrono::Utc;
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 use uom::si::{
     f64::{Pressure, VolumeRate},
     pressure::bar,
@@ -13,41 +17,8 @@ use super::mockloop_hardware::{
     MockloopHardware, MockloopHardwareError, REGULATOR_MIN_PRESSURE_BAR, Valve, ValveState,
 };
 
-const DEVICE: &str = "dev1";
-
-#[derive(Debug)]
-pub struct Nidaq {
-    pressure_systemic_preload_task: Task,
-    pressure_systemic_afterload_task: Task,
-    // pressure_pulmonary_preload_task: Task,
-    // pressure_pulmonary_afterload_task: Task,
-    regulator_actual_pressure_task: Task,
-    systemic_flow_task: Task,
-    pulmonary_flow_task: Task,
-    set_valve_left_task: Task,
-    set_valve_right_task: Task,
-    regulator_set_pressure_task: Task,
-}
-
-impl Nidaq {
-    pub fn try_new() -> Result<Self, NidaqError> {
-        Ok(Nidaq {
-            pressure_systemic_preload_task: Task::new(DEVICE)?,
-            pressure_systemic_afterload_task: Task::new(DEVICE)?,
-            // pressure_pulmonary_preload_task: Task::new(DEVICE)?,
-            // pressure_pulmonary_afterload_task: Task::new(DEVICE)?,
-            regulator_actual_pressure_task: Task::new(DEVICE)?,
-            systemic_flow_task: Task::new(DEVICE)?,
-            pulmonary_flow_task: Task::new(DEVICE)?,
-            set_valve_left_task: Task::new(DEVICE)?,
-            set_valve_right_task: Task::new(DEVICE)?,
-            regulator_set_pressure_task: Task::new(DEVICE)?,
-        })
-    }
-}
-
 impl MockloopHardware for Nidaq {
-    fn initialize(&mut self) -> Result<(), MockloopHardwareError> {
+    fn initialize(&mut self) -> Result<MockloopHardwareError> {
         info!("Nidaq initializing");
 
         self.pressure_systemic_preload_task.add_ai_voltage_chan(
@@ -108,7 +79,7 @@ impl MockloopHardware for Nidaq {
         Ok(())
     }
 
-    fn set_regulator_pressure(&mut self, pressure: Pressure) -> Result<(), MockloopHardwareError> {
+    fn set_regulator_pressure(&mut self, pressure: Pressure) -> Result<MockloopHardwareError> {
         debug!("setting regulator pressure {:?}", pressure);
         let pressure = pressure_to_voltage(
             pressure,
@@ -117,6 +88,8 @@ impl MockloopHardware for Nidaq {
             0.0,
             10.0,
         )?;
+        self.write
+
         // info!("Nidaq setting regulator pressure to: {:?}", pressure);
         Ok(self.regulator_set_pressure_task.write_analog(pressure)?)
     }
@@ -188,11 +161,7 @@ impl MockloopHardware for Nidaq {
         })
     }
 
-    fn set_valve(
-        &mut self,
-        valve: Valve,
-        setpoint: ValveState,
-    ) -> Result<(), MockloopHardwareError> {
+    fn set_valve(&mut self, valve: Valve, setpoint: ValveState) -> Result<MockloopHardwareError> {
         // info!("Nidaq setting valve {:?}: {:?}", valve, setpoint);
         let task = match valve {
             Valve::Left => &self.set_valve_left_task,

@@ -1,98 +1,187 @@
+use anyhow::Result;
 use std::{ffi::CString, ptr};
+use thiserror::Error;
 use tracing::error;
 
 use chrono::Duration;
 use ndarray::Array2;
+use std::collections::HashMap;
 
-use super::bindings::nidaqmx_bindings::*;
-
-#[derive(Debug, Eq, PartialEq)]
-enum ChannelType {
-    Input,
-    Output,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-enum SignalType {
-    Analog,
-    Digital,
-}
+use super::{
+    bindings::nidaqmx_bindings::*,
+    channel::{ChannelName, ReadChannel, WriteChannel},
+};
 
 /// Combined sample rate for all nidaq
 /// NOTE: maximum is 20kS/s, but we do not require this resolution
 const COMBINED_TASK_SAMPLE_RATE: f64 = 2000.0;
+/// Timeout for nidaq communications
 const COMMS_WAIT_TIME: Duration = Duration::milliseconds(50);
 /// Read buffer size in samples
 const N_SAMPLES_READ: usize = 1024;
+/// NIDAQ Device name prefix
+const DEVICE_PREFIX: &str = "dev1";
+
+#[derive(Debug, Error)]
+pub enum NidaqError {
+    #[error("Nidaq Error: {0}")]
+    Error(String),
+}
+
+/// Typestate structs for NidaqBuilder
+pub struct NotInitialized;
+pub struct Initialized;
 
 #[derive(Debug)]
-pub struct NidaqError(pub String);
+pub struct NidaqBuilder<S> {
+    read_task_handle: Option<TaskHandle>,
+    write_task_handle: Option<TaskHandle>,
+    read_channels: HashMap<ChannelName, ReadChannel>,
+    write_channels: HashMap<ChannelName, WriteChannel>,
+    state: std::marker::PhantomData<S>,
+}
 
-#[derive(Debug)]
-/// Nidaqmx task wrapper
-/// Note: currently only a single channel per task is supported
-pub struct Task {
-    device: &'static str,
-    handle: TaskHandle,
-    channel: Option<Channel>,
+impl NidaqBuilder<NotInitialized> {
+    pub fn new() -> Self {
+        Self {
+            read_task_handle: None,
+            write_task_handle: None,
+            read_channels: HashMap::new(),
+            write_channels: HashMap::new(),
+            state: std::marker::PhantomData::<NotInitialized>, // Typestate marker
+        }
+    }
+
+    pub fn with_read_channel(mut self, channel_name: ChannelName, channel: ReadChannel) -> Self {
+        self.read_channels.insert(channel_name, channel);
+        self
+    }
+
+    pub fn with_write_channel(
+        mut self,
+        channel_name: ChannelName,
+        channel: WriteChannel,
+    ) -> Result<Self> {
+        let c_channel = CString::new(format!("{}/{}", DEVICE_PREFIX, channel.0.physical_channel))?;
+        error!("nidaqmx-sys: adding channel: {:?}", c_channel);
+
+        unsafe {
+            let err = DAQmxCreateAOVoltageChan(
+                self.read_task_handle
+                    .expect("No task handle when trying to add channel"),
+                c_channel.as_ptr(),
+                ptr::null(),
+                channel.0.min,
+                channel.0.max,
+                DAQmx_Val_Volts as i32,
+                ptr::null(),
+            );
+            check_err(err)?;
+        }
+
+        self.write_channels.insert(channel_name, channel);
+        Ok(self)
+    }
+
+    pub fn build(self) -> Result<NidaqBuilder<Initialized>> {
+        let mut read_task_handle = std::ptr::null_mut();
+        let mut write_task_handle = std::ptr::null_mut();
+
+        unsafe {
+            check_err(DAQmxCreateTask(ptr::null(), &mut read_task_handle))?;
+            check_err(DAQmxCreateTask(ptr::null(), &mut write_task_handle))?;
+        }
+
+        Ok(NidaqBuilder::<Initialized> {
+            read_task_handle: Some(read_task_handle),
+            write_task_handle: Some(write_task_handle),
+            write_channels: self.write_channels.clone(),
+            read_channels: self.read_channels.clone(),
+            state: std::marker::PhantomData::<Initialized>,
+        })
+    }
+}
+
+impl<S> Drop for NidaqBuilder<S> {
+    fn drop(&mut self) {
+        if let Some(handle) = self.read_task_handle {
+            unsafe {
+                DAQmxClearTask(handle);
+            }
+        }
+        if let Some(handle) = self.write_task_handle {
+            unsafe {
+                DAQmxClearTask(handle);
+            }
+        }
+    }
+}
+
+impl NidaqBuilder<Initialized> {
+    pub fn initialize(self) -> Result<Nidaq> {
+        // Start Nidaq tasks
+        unsafe {
+            check_err(DAQmxStartTask(
+                self.read_task_handle
+                    .expect("read task handle should exist after build step"),
+            ))?;
+            check_err(DAQmxStartTask(
+                self.write_task_handle
+                    .expect("write task handle should exist after build step"),
+            ))?;
+        }
+
+        Ok(Nidaq {
+            read_task_handle: self
+                .read_task_handle
+                .expect("read_task_handle should be initialized during build step"),
+            write_task_handle: self
+                .write_task_handle
+                .expect("write_task_handle should be initialized during build step"),
+            read_channels: self.read_channels.clone(),
+            write_channels: self.write_channels.clone(),
+        })
+    }
 }
 
 #[derive(Debug)]
-/// Nidaq in/output channel
-pub struct Channel {
-    name: &'static str,
-    signal_type: SignalType,
-    channel_type: ChannelType,
-    physical_channel: String,
+pub struct Nidaq {
+    read_task_handle: TaskHandle,
+    write_task_handle: TaskHandle,
+    read_channels: HashMap<String, ReadChannel>,
+    write_channels: HashMap<String, WriteChannel>,
 }
 
-#[derive(Debug)]
-pub struct NidaqAnalogReading {
-    pub data: Array2<f64>,
+impl Drop for Nidaq {
+    fn drop(&mut self) {
+        unsafe {
+            DAQmxClearTask(self.read_task_handle);
+        }
+        unsafe {
+            DAQmxClearTask(self.write_task_handle);
+        }
+    }
 }
 
-#[derive(Debug)]
-pub struct NidaqDigitalReading {
-    pub data: u32,
-}
+// pressure_systemic_preload_task: Task,
+// pressure_systemic_afterload_task: Task,
+// // pressure_pulmonary_preload_task: Task,
+// // pressure_pulmonary_afterload_task: Task,
+// regulator_actual_pressure_task: Task,
+// systemic_flow_task: Task,
+// pulmonary_flow_task: Task,
+// set_valve_left_task: Task,
+// set_valve_right_task: Task,
+// regulator_set_pressure_task: Task,
 
 // TODO: find a better method, Send should not be impl generally as people will think its
 // threadsafe, which its not
 /// SAFETY: Send is only used by tracing task (by #[instrument]), which reads it.
 /// Invariant: the task handle is never changed after construction, and only accessed through the
 /// public Task methods
-unsafe impl Send for Task {}
+// unsafe impl Send for Task {}
 
-impl Task {
-    pub fn new(device: &'static str) -> Result<Self, NidaqError> {
-        let mut handle = std::ptr::null_mut();
-        unsafe {
-            let err = DAQmxCreateTask(ptr::null(), &mut handle);
-            check_err(err)?;
-        }
-        Ok(Task {
-            device,
-            handle,
-            channel: None,
-        })
-    }
-
-    pub fn start(&self) -> Result<(), NidaqError> {
-        unsafe {
-            let err = DAQmxStartTask(self.handle);
-            check_err(err)?;
-        }
-        Ok(())
-    }
-
-    pub fn stop(&self) -> Result<(), NidaqError> {
-        unsafe {
-            let err = DAQmxStopTask(self.handle);
-            check_err(err)?;
-        }
-        Ok(())
-    }
-
+impl Nidaq {
     pub fn add_ai_voltage_chan(
         &mut self,
         channel: &'static str,
@@ -100,8 +189,8 @@ impl Task {
         min: f64,
         max: f64,
     ) -> Result<(), NidaqError> {
-        let c_channel = CString::new(format!("{}/{}", self.device, channel))
-            .map_err(|_| NidaqError("Null char in channel name".to_owned()))?;
+        let c_channel = CString::new(format!("{}/{}", DEVICE_PREFIX, channel))
+            .map_err(|_| NidaqError::Error("Null char in channel name".to_owned()))?;
         error!("nidaqmx-sys: adding channel: {:?}", c_channel);
 
         unsafe {
@@ -351,15 +440,7 @@ impl Task {
     }
 }
 
-impl Drop for Task {
-    fn drop(&mut self) {
-        unsafe {
-            DAQmxClearTask(self.handle);
-        }
-    }
-}
-
-fn check_err(err: i32) -> Result<(), NidaqError> {
+pub fn check_err(err: i32) -> Result<(), NidaqError> {
     if err < 0 {
         // Allocate the error buffer
         let mut buf = [0i8; 2048];
@@ -369,7 +450,7 @@ fn check_err(err: i32) -> Result<(), NidaqError> {
         }
         // Return that as NidaqError
         let c_str = unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) };
-        return Err(NidaqError(c_str.to_string_lossy().into_owned()));
+        return Err(NidaqError::Error((c_str.to_string_lossy().into_owned())));
     } else if err > 0 {
         // Trace warning
         let mut buf = [0i8; 2048];
@@ -380,4 +461,14 @@ fn check_err(err: i32) -> Result<(), NidaqError> {
         tracing::warn!("{}", c_str.to_string_lossy());
     }
     Ok(())
+}
+
+#[derive(Debug)]
+pub struct NidaqAnalogReading {
+    pub data: Array2<f64>,
+}
+
+#[derive(Debug)]
+pub struct NidaqDigitalReading {
+    pub data: u32,
 }

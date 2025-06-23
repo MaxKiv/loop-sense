@@ -81,8 +81,6 @@ impl ActuatorSetpoint {
 pub struct MockloopHardwareError(pub String);
 
 pub trait MockloopHardware: Debug {
-    fn initialize(&mut self) -> Result<(), MockloopHardwareError>;
-
     fn set_regulator_pressure(&mut self, pressure: Pressure) -> Result<(), MockloopHardwareError>;
 
     fn read_sensors(&mut self) -> Result<SensorData, MockloopHardwareError>;
