@@ -110,14 +110,8 @@ where
     T: MockloopHardware,
 {
     /// Initialize a new controller with the given hardware interface and setpoint receiver
-    pub fn new(mut hw: T, setpoint_receiver: Receiver<ControllerSetpoint>) -> Self {
+    pub fn new(hw: T, setpoint_receiver: Receiver<ControllerSetpoint>) -> Self {
         info!("Initialize controller");
-
-        // Initialize hardware
-        if let Err(err) = hw.initialize() {
-            todo!("properly handle hardware initialize error: {:?}", err);
-        }
-
         MockloopController {
             state: ControllerState::PreOp,
             last_cycle_time: Utc::now(),
@@ -156,7 +150,9 @@ where
                 // Set control loop to pre operation while controller is disabled
                 self.state = ControllerState::PreOp;
                 // Make sure mockloop is in safe position when disabled
-                self.hw.to_safe_state().unwrap();
+                if let Err(err) = self.hw.to_safe_state() {
+                    error!("Unable to move mockloop into safe state: {}", err);
+                }
             }
 
             // Time bookkeeping

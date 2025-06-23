@@ -58,3 +58,8 @@ to C/C++ Defines. Loop-sense can be build with following features:
 [Rustup]: https://www.rust-lang.org/tools/install
 [Cargo]: https://doc.rust-lang.org/cargo/
 [Rust]: https://www.rust-lang.org/
+
+# TODO
+
+- str& instead of String everywhere
+- tidy up public/private access

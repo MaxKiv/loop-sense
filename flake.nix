@@ -30,7 +30,7 @@
       toolchain = with fenix.packages.${system};
         fromToolchainFile {
           file = ./rust-toolchain.toml; # alternatively, dir = ./.;
-          sha256 = "sha256-UAoZcxg3iWtS+2n8TFNfANFt/GmkuOMDf7QAE0fRxeA=";
+          sha256 = "sha256-iia8FkmVjcS5deG61FHlPDH/8Mh35VCsThCCgqRSJ2A=";
           # sha256 = pkgs.lib.fakeSha256;
         };
 
@@ -98,26 +98,50 @@
               else ""
             );
         };
+
+      fhs_env = pkgs.buildFHSEnv {
+        name = "fhs_shell";
+        targetPkgs = pkgs: with pkgs; [
+          gcc
+          influxdb3
+          rust-analyzer
+          toolchain
+        ];
+        profile = ''
+          export RUST_BACKTRACE=full
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(realpath ./vendor/nidaqmx/lib64/gcc)
+        '';
+        runScript = "bash";
+      };
     in {
       # Development shells provided by this flake, to use:
       # nix develop .#default
       devShell = pkgs.mkShell {
-        # Required by the nidaqmx lib
-        LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [pkgs.stdenv.cc.cc];
-        RUST_BACKTRACE = "full";
+          # Required by the nidaqmx lib
+          LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
+            pkgs.stdenv.cc.cc
+          ];
 
-        buildInputs = with pkgs; [
-          zig_0_13 # zig toolchain, used to compile Windows MSVC binaries
-          nil # Nix LSP
-          alejandra # Nix Formatter
-          toolchain # Our Rust toolchain
-          rust-analyzer # Rust LSP
+          buildInputs = with pkgs; [
+            zig_0_13 # zig toolchain, used to compile Windows MSVC binaries
+            nil # Nix LSP
+            alejandra # Nix Formatter
+            toolchain # Our Rust toolchain
+            rust-analyzer # Rust LSP
 
-          cargo-xwin # easy windows x-compilation
+            cargo-xwin # easy windows x-compilation
 
-          influxdb3 # Timeseries Database
-        ];
-      };
+            influxdb3 # Timeseries Database
+          ];
+
+          RUST_BACKTRACE = "full";
+
+          # shellHook = ''
+          #     export LD_LIBRARY_PATH="${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.libstdcxx}/lib:$LD_LIBRARY_PATH"
+          #     export RUST_BACKTRACE=full
+          #     echo "LD_LIBRARY_PATH set to: $LD_LIBRARY_PATH"
+          #   '';
+        };
 
       packages = {
         default = buildForTarget "x86_64-unknown-linux-gnu" "sim";
