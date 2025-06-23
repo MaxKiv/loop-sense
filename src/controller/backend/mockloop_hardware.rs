@@ -1,3 +1,4 @@
+use anyhow::Result;
 use chrono::{DateTime, Utc};
 use rand::random_range;
 use serde::{Deserialize, Serialize};
@@ -77,17 +78,12 @@ impl ActuatorSetpoint {
     }
 }
 
-#[derive(Debug)]
-pub struct MockloopHardwareError(pub String);
-
 pub trait MockloopHardware: Debug {
-    fn initialize(&mut self) -> Result<(), MockloopHardwareError>;
+    fn set_regulator_pressure(&mut self, pressure: Pressure) -> Result<()>;
 
-    fn set_regulator_pressure(&mut self, pressure: Pressure) -> Result<(), MockloopHardwareError>;
+    fn read_sensors(&mut self) -> Result<SensorData>;
 
-    fn read_sensors(&mut self) -> Result<SensorData, MockloopHardwareError>;
-
-    fn to_safe_state(&mut self) -> Result<(), MockloopHardwareError> {
+    fn to_safe_state(&mut self) -> Result<()> {
         let safe_setpoint = ActuatorSetpoint::get_safe();
         self.set_regulator_pressure(safe_setpoint.controller_pressure_regulator)?;
         self.set_valve(Valve::Left, safe_setpoint.controller_valve_left)?;
@@ -95,9 +91,5 @@ pub trait MockloopHardware: Debug {
         Ok(())
     }
 
-    fn set_valve(
-        &mut self,
-        valve: Valve,
-        setpoint: ValveState,
-    ) -> Result<(), MockloopHardwareError>;
+    fn set_valve(&mut self, valve: Valve, setpoint: ValveState) -> Result<()>;
 }

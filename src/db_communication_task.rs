@@ -7,7 +7,6 @@ use loop_sense::database::query::GET_LATEST_MEASUREMENT_ID;
 use loop_sense::database::record::SensorDataRecord;
 use loop_sense::database::secrets::{DB_ACCESS_TOKEN, DB_NAME, DB_URI, MEASUREMENT_ID_TABLE};
 use serde_json::Value;
-use std::collections::HashMap;
 use tokio::sync::mpsc::Receiver;
 use tokio::time::{self, Duration, Instant};
 use tracing::{debug, error, info, warn};

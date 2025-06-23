@@ -108,12 +108,6 @@ where
     /// Initialize a new controller with the given hardware interface and setpoint receiver
     pub fn new(mut hw: T, setpoint_receiver: Receiver<ControllerSetpoint>) -> Self {
         info!("Initialize controller");
-
-        // Initialize hardware
-        if let Err(err) = hw.initialize() {
-            todo!("properly handle hardware initialize error: {:?}", err);
-        }
-
         MockloopController {
             state: ControllerState::PreOp,
             last_cycle_time: Utc::now(),
