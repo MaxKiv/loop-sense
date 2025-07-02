@@ -8,7 +8,7 @@ use loop_sense::controller::backend::sim::Sim;
 #[cfg(feature = "nidaq")]
 use loop_sense::controller::backend::nidaq::Nidaq;
 
-pub async fn control_loop(setpoint_receiver: Receiver<ControllerSetpoint>) {
+pub async fn high_lvl_control_loop(setpoint_receiver: Receiver<ControllerSetpoint>) {
     #[cfg(feature = "sim")]
     let controller = MockloopController::new(Sim, setpoint_receiver);
 

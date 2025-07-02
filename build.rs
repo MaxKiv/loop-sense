@@ -4,6 +4,7 @@ fn main() {
     // env::var("TARGET") gives you the full triple (e.g. x86_64-unknown-linux-gnu, x86_64-pc-windows-msvc).
     let target = env::var("TARGET").unwrap_or_default();
 
+    // Link to vendored NIDAQmx lib
     if cfg!(feature = "nidaq") {
         if target.contains("windows-msvc") {
             println!("cargo:rustc-link-search=native=vendor/nidaqmx/lib64/msvc");

@@ -6,15 +6,18 @@ use axum::{
     Router,
     routing::{get, post},
 };
-use control_loop_task::control_loop;
+use control_loop_task::high_lvl_control_loop;
 use db_communication_task::communicate_with_db;
 use influxdb::Client;
-use loop_sense::database::secrets::{DB_ACCESS_TOKEN, DB_NAME, DB_URI};
 use loop_sense::{
     appstate::AppState,
     communicator::passthrough::PassThroughCommunicator,
     controller::{backend::mockloop_hardware::SensorData, mockloop_controller::ControllerSetpoint},
     http::{get_data, post_setpoint},
+};
+use loop_sense::{
+    controller::mockloop_controller::MockloopController,
+    database::secrets::{DB_ACCESS_TOKEN, DB_NAME, DB_URI},
 };
 use micro_communication_task::communicate_with_micro;
 use std::sync::{Arc, Mutex};
@@ -28,7 +31,7 @@ async fn main() {
     let subscriber = FmtSubscriber::builder()
         // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
         // will be written to stdout.
-        .with_max_level(Level::INFO)
+        .with_max_level(Level::WARN)
         .finish();
 
     tracing::subscriber::set_global_default(subscriber)
@@ -42,6 +45,7 @@ async fn main() {
         sensor_data: Arc::new(Mutex::new(initial_data)),
     };
 
+    // Track async task handles to join them later
     let mut handles = Vec::new();
 
     // Delegate all microcontroller communication to a separate tokio task
@@ -54,8 +58,8 @@ async fn main() {
     ));
     handles.push(handle);
 
-    // Start the control loop in a separate task
-    let handle = task::spawn(control_loop(receiver));
+    // Start the high level control loop in a separate task
+    let handle = task::spawn(high_lvl_control_loop(receiver));
     handles.push(handle);
 
     // Start the DB communication task
