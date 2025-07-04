@@ -37,6 +37,8 @@ pub struct NidaqBuilder<S> {
     analog_output_channels: HashMap<ChannelName, AnalogOutputChannel>,
     digital_input_channels: HashMap<ChannelName, DigitalInputChannel>,
     digital_output_channels: HashMap<ChannelName, DigitalOutputChannel>,
+    channel_data_idx: HashMap<ChannelName, usize>, // nidaqmx returns each virtual channels' data in the order each was registered, so we track that order here
+    current_data_idx: usize,
     state: std::marker::PhantomData<S>, // Typestate marker
 }
 
@@ -49,7 +51,9 @@ impl NidaqBuilder<NotInitialized> {
             analog_output_channels: HashMap::new(),
             digital_input_channels: HashMap::new(),
             digital_output_channels: HashMap::new(),
+            channel_data_idx: HashMap::new(),
             state: std::marker::PhantomData::<NotInitialized>,
+            current_data_idx: 0,
         }
     }
 
@@ -69,7 +73,9 @@ impl NidaqBuilder<NotInitialized> {
             analog_output_channels: self.analog_output_channels.clone(),
             digital_input_channels: self.digital_input_channels.clone(),
             digital_output_channels: self.digital_output_channels.clone(),
+            channel_data_idx: self.channel_data_idx.clone(),
             state: std::marker::PhantomData::<Initialized>,
+            current_data_idx: 0,
         })
     }
 }
@@ -81,6 +87,9 @@ impl NidaqBuilder<Initialized> {
         channel: AnalogInputChannel,
     ) -> Result<()> {
         self.analog_input_channels.insert(name.to_owned(), channel);
+        self.channel_data_idx
+            .insert(name.to_owned(), self.current_data_idx);
+        self.current_data_idx += 1;
 
         Ok(())
     }
@@ -91,6 +100,9 @@ impl NidaqBuilder<Initialized> {
         channel: AnalogOutputChannel,
     ) -> Result<()> {
         self.analog_output_channels.insert(name.to_owned(), channel);
+        self.channel_data_idx
+            .insert(name.to_owned(), self.current_data_idx);
+        self.current_data_idx += 1;
 
         Ok(())
     }
@@ -101,6 +113,9 @@ impl NidaqBuilder<Initialized> {
         channel: DigitalInputChannel,
     ) -> Result<()> {
         self.digital_input_channels.insert(name.to_owned(), channel);
+        self.channel_data_idx
+            .insert(name.to_owned(), self.current_data_idx);
+        self.current_data_idx += 1;
 
         Ok(())
     }
@@ -112,6 +127,9 @@ impl NidaqBuilder<Initialized> {
     ) -> Result<()> {
         self.digital_output_channels
             .insert(name.to_owned(), channel);
+        self.channel_data_idx
+            .insert(name.to_owned(), self.current_data_idx);
+        self.current_data_idx += 1;
 
         Ok(())
     }
@@ -266,6 +284,10 @@ impl NidaqBuilder<Initialized> {
                     .expect("write task handle should exist after build step"),
             ))?;
         }
+        let num_read_channels =
+            self.analog_input_channels.len() as u32 + self.digital_input_channels.len() as u32;
+        let num_write_channels =
+            self.analog_output_channels.len() as u32 + self.digital_output_channels.len() as u32;
 
         Ok(Nidaq {
             read_task_handle: self
@@ -274,14 +296,34 @@ impl NidaqBuilder<Initialized> {
             write_task_handle: self
                 .write_task_handle
                 .expect("write_task_handle should be initialized during build step"),
-            num_read_channels: self.analog_input_channels.len() as u32
-                + self.digital_input_channels.len() as u32,
-            num_write_channels: self.analog_output_channels.len() as u32
-                + self.digital_output_channels.len() as u32,
+            num_read_channels,
+            num_write_channels,
             analog_input_channels: self.analog_input_channels.clone(),
             analog_output_channels: self.analog_output_channels.clone(),
             digital_input_channels: self.digital_input_channels.clone(),
             digital_output_channels: self.digital_output_channels.clone(),
+            channel_data_idx: self.channel_data_idx.clone(),
+
+            current_setpoint: NidaqWriteData {
+                analog: Array2::zeros((
+                    num_write_channels as usize,
+                    WRITE_SAMPLES_PER_CHANNEL as usize,
+                )),
+                digital: Array2::zeros((
+                    num_write_channels as usize,
+                    WRITE_SAMPLES_PER_CHANNEL as usize,
+                )),
+            },
+            current_data: NidaqReading {
+                analog: Array2::zeros((
+                    num_read_channels as usize,
+                    READ_SAMPLES_PER_CHANNEL as usize,
+                )),
+                digital: Array2::zeros((
+                    num_read_channels as usize,
+                    READ_SAMPLES_PER_CHANNEL as usize,
+                )),
+            },
         })
     }
 }
@@ -305,12 +347,19 @@ impl<S> Drop for NidaqBuilder<S> {
 pub struct Nidaq {
     read_task_handle: TaskHandle,
     write_task_handle: TaskHandle,
+    /// Nidaqmx expects a full set of setpoints on every write, this tracks the latest setpoints.
+    /// Setpoints are mutated through the public methods of this struct
+    /// NOTE: This means we write zeros to everything before setpoints are received, this is fine.
+    current_setpoint: NidaqWriteData,
+    /// Nidaqmx reads all sensordata at once, this tracks the latest reading for further processing in the public methods
+    current_data: NidaqReading,
     num_read_channels: u32,
     num_write_channels: u32,
     analog_input_channels: HashMap<ChannelName, AnalogInputChannel>,
     analog_output_channels: HashMap<ChannelName, AnalogOutputChannel>,
     digital_input_channels: HashMap<ChannelName, DigitalInputChannel>,
     digital_output_channels: HashMap<ChannelName, DigitalOutputChannel>,
+    channel_data_idx: HashMap<ChannelName, usize>, // nidaqmx returns each virtual channels' data in the order each was registered, so we track that order here
 }
 
 impl Drop for Nidaq {
@@ -325,6 +374,7 @@ impl Drop for Nidaq {
 }
 
 impl Nidaq {
+    /// Read all data from the nidaq
     pub fn read(&self) -> Result<NidaqReading> {
         let mut analog = Array2::zeros((
             self.num_read_channels as usize,
@@ -382,7 +432,24 @@ impl Nidaq {
         Ok(NidaqReading { analog, digital })
     }
 
-    pub fn write(&self, NidaqWriteData { analog, digital }: NidaqWriteData) -> Result<()> {
+    pub fn get_data_idx(&self, channel_name: &str) -> Option<&usize> {
+        self.channel_data_idx.get(channel_name)
+    }
+
+    pub fn update_analog_setpoint(&mut self, row: usize, value: f64) {
+        self.current_setpoint.analog[[row, 0]] = value;
+    }
+
+    pub fn update_digital_setpoint(&mut self, row: usize, value: u8) {
+        self.current_setpoint.digital[[row, 0]] = value;
+    }
+
+    /// Send latest setpoints to the nidaq
+    pub fn write(&self) -> Result<()> {
+        let NidaqWriteData { analog, digital } = &self.current_setpoint;
+
+        info!("Writing setpoints to nidaq: {:?} - {:?}", analog, digital);
+
         let mut written_samples_per_channel: i32 = 0;
         unsafe {
             let err = DAQmxWriteAnalogF64(
@@ -432,7 +499,7 @@ impl Nidaq {
     }
 }
 
-pub fn check_err(err: i32) -> Result<()> {
+fn check_err(err: i32) -> Result<()> {
     if err != 0 {
         // Allocate the error buffer
         let mut buf = [0i8; 2048];

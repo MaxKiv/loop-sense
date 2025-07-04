@@ -110,7 +110,7 @@ where
     T: MockloopHardware,
 {
     /// Initialize a new controller with the given hardware interface and setpoint receiver
-    pub fn new(mut hw: T, setpoint_receiver: Receiver<ControllerSetpoint>) -> Self {
+    pub fn new(hw: T, setpoint_receiver: Receiver<ControllerSetpoint>) -> Self {
         info!("Initialize controller");
         MockloopController {
             state: ControllerState::PreOp,

@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use chrono::Utc;
 use tracing::{debug, info};
 use uom::si::{
@@ -7,11 +7,23 @@ use uom::si::{
     volume_rate::liter_per_minute,
 };
 
-use crate::{controller::backend::mockloop_hardware::SensorData, nidaq::nidaq_sys::{Nidaq}};
-
-use super::mockloop_hardware::{
-    MockloopHardware, REGULATOR_MIN_PRESSURE_BAR, Valve, ValveState,
+use crate::{
+    controller::backend::mockloop_hardware::SensorData,
+    nidaq::nidaq_sys::{Nidaq, NidaqWriteData},
 };
+
+use super::mockloop_hardware::{MockloopHardware, REGULATOR_MIN_PRESSURE_BAR, Valve, ValveState};
+
+pub const PRESSURE_SYSTEMIC_PRELOAD_CHANNEL: &str = "pressure_systemic_preload";
+pub const PRESSURE_SYSTEMIC_AFTERLOAD_CHANNEL: &str = "pressure_systemic_afterload";
+pub const PRESSURE_PULMONARY_PRELOAD_CHANNEL: &str = "pressure_pulmonary_preload";
+pub const PRESSURE_PULMONARY_AFTERLOAD_CHANNEL: &str = "pressure_pulmonary_afterload";
+pub const REGULATOR_ACTUAL_PRESSURE_CHANNEL: &str = "regulator_actual_pressure";
+pub const SET_REGULATOR_PRESSURE_CHANNEL: &str = "regulator_set_pressure";
+pub const SYSTEMIC_FLOW_CHANNEL: &str = "systemic_flow";
+pub const PULMONARY_FLOW_CHANNEL: &str = "pulmonary_flow";
+pub const VALVE_LEFT_CHANNEL: &str = "valve_left";
+pub const VALVE_RIGHT_CHANNEL: &str = "valve_rigth";
 
 impl MockloopHardware for Nidaq {
     fn set_regulator_pressure(&mut self, pressure: Pressure) -> Result<()> {
@@ -23,38 +35,113 @@ impl MockloopHardware for Nidaq {
             0.0,
             10.0,
         )?;
-        self.write
 
-        // info!("Nidaq setting regulator pressure to: {:?}", pressure);
-        Ok(self.regulator_set_pressure_task.write_analog(pressure)?)
+        let idx = self
+            .get_data_idx(PRESSURE_SYSTEMIC_PRELOAD_CHANNEL)
+            .expect("PRESSURE_SYSTEMIC_AFTERLOAD_CHANNEL should exist");
+        self.update_analog_setpoint(*idx, pressure);
+
+        // Update nidaq setpoints
+        self.write()?;
+
+        Ok(())
+    }
+
+    fn set_valve(&mut self, valve: Valve, setpoint: ValveState) -> Result<()> {
+        debug!("setting valve {:?} to {:?}", valve, setpoint);
+        let channel_name = match valve {
+            Valve::Left => &VALVE_LEFT_CHANNEL,
+            Valve::Right => &VALVE_RIGHT_CHANNEL,
+        };
+
+        let idx = self
+            .get_data_idx(channel_name.to_string())
+            .expect(format!("{} should exist", channel_name).as_str());
+
+        let value = match setpoint {
+            ValveState::Closed => 0,
+            ValveState::Open => 1,
+        };
+
+        self.update_digital_setpoint(*idx, value);
+
+        Ok(())
     }
 
     fn read_sensors(&mut self) -> Result<SensorData> {
-        // info!("Nidaq reading sensors");
-        let pressure_systemic_preload = self
-            .pressure_systemic_preload_task
-            .read_analog()?
-            .data
+        info!("Nidaq reading sensors");
+
+        let data = self.read()?;
+
+        let pressure_systemic_preload = data
+            .analog
+            .row(
+                *(self
+                    .get_data_idx(PRESSURE_SYSTEMIC_PRELOAD_CHANNEL)
+                    .expect("PRESSURE_SYSTEMIC_PRELOAD_CHANNEL should exist")),
+            )
             .mean()
             .unwrap();
 
-        let pressure_systemic_afterload = self
-            .pressure_systemic_afterload_task
-            .read_analog()?
-            .data
+        let pressure_systemic_afterload = data
+            .analog
+            .row(
+                *(self
+                    .get_data_idx(PRESSURE_SYSTEMIC_AFTERLOAD_CHANNEL)
+                    .expect("PRESSURE_SYSTEMIC_AFTERLOAD_CHANNEL should exist")),
+            )
             .mean()
             .unwrap();
 
-        let regulator_actual_pressure = self
-            .regulator_set_pressure_task
-            .read_analog()?
-            .data
+        let pressure_pulmonary_preload = data
+            .analog
+            .row(
+                *(self
+                    .get_data_idx(PRESSURE_PULMONARY_PRELOAD_CHANNEL)
+                    .expect("PRESSURE_PULMONARY_PRELOAD_CHANNEL should exist")),
+            )
             .mean()
             .unwrap();
 
-        let systemic_flow = self.systemic_flow_task.read_analog()?.data.mean().unwrap();
+        let pressure_pulmonary_afterload = data
+            .analog
+            .row(
+                *(self
+                    .get_data_idx(PRESSURE_PULMONARY_AFTERLOAD_CHANNEL)
+                    .expect("PRESSURE_PULMONARY_AFTERLOAD_CHANNEL should exist")),
+            )
+            .mean()
+            .unwrap();
 
-        let pulmonary_flow = self.pulmonary_flow_task.read_analog()?.data.mean().unwrap();
+        let regulator_actual_pressure = data
+            .analog
+            .row(
+                *(self
+                    .get_data_idx(REGULATOR_ACTUAL_PRESSURE_CHANNEL)
+                    .expect("REGULATOR_ACTUAL_PRESSURE_CHANNEL should exist")),
+            )
+            .mean()
+            .unwrap();
+
+        let systemic_flow = data
+            .analog
+            .row(
+                *(self
+                    .get_data_idx(SYSTEMIC_FLOW_CHANNEL)
+                    .expect("SYSTEMIC_FLOW_CHANNEL should exist")),
+            )
+            .mean()
+            .unwrap();
+
+        let pulmonary_flow = data
+            .analog
+            .row(
+                *(self
+                    .get_data_idx(PULMONARY_FLOW_CHANNEL)
+                    .expect("PULMONARY_FLOW_CHANNEL should exist")),
+            )
+            .mean()
+            .unwrap();
 
         Ok(SensorData {
             experiment_time: Utc::now(),
@@ -95,21 +182,6 @@ impl MockloopHardware for Nidaq {
             )?,
         })
     }
-
-    fn set_valve(&mut self, valve: Valve, setpoint: ValveState) -> Result<()> {
-        // info!("Nidaq setting valve {:?}: {:?}", valve, setpoint);
-        let task = match valve {
-            Valve::Left => &self.set_valve_left_task,
-            Valve::Right => &self.set_valve_right_task,
-        };
-
-        match setpoint {
-            ValveState::Closed => task.write_digital(false)?,
-            ValveState::Open => task.write_digital(true)?,
-        };
-
-        Ok(())
-    }
 }
 
 fn pressure_to_voltage(
@@ -122,12 +194,14 @@ fn pressure_to_voltage(
     if pressure < min_pressure {
         bail!(
             "Attempting to set pressure lower than min pressure: {:?} < {:?}",
-            pressure, min_pressure
+            pressure,
+            min_pressure
         );
     } else if pressure > max_pressure {
         bail!(
             "Attempting to set pressure larger than max pressure: {:?} > {:?}",
-            pressure, max_pressure
+            pressure,
+            max_pressure
         );
     }
 
@@ -148,7 +222,9 @@ fn voltage_to_pressure(
     if voltage < vmin || voltage > vmax {
         bail!(
             "Voltage out of range in pressure conversion of: {:?} - Range [{:?},{:?}]",
-            voltage, vmin, vmax
+            voltage,
+            vmin,
+            vmax
         );
     }
 
@@ -168,7 +244,9 @@ fn voltage_to_flow(
     if voltage < vmin || voltage > vmax {
         bail!(
             "Voltage out of range in flowrate conversion of: {:?} - Range [{:?},{:?}]",
-            voltage, vmin, vmax
+            voltage,
+            vmin,
+            vmax
         );
     }
 

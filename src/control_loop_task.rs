@@ -10,6 +10,11 @@ use loop_sense::controller::backend::sim::Sim;
 use loop_sense::controller::backend::nidaq::{
     channel::{AnalogInputChannel, AnalogOutputChannel, DigitalOutputChannel},
     nidaq_sys::{Nidaq, NidaqBuilder},
+    {
+        PRESSURE_SYSTEMIC_AFTERLOAD_CHANNEL, PRESSURE_SYSTEMIC_PRELOAD_CHANNEL,
+        PULMONARY_FLOW_CHANNEL, REGULATOR_ACTUAL_PRESSURE_CHANNEL, SET_REGULATOR_PRESSURE_CHANNEL,
+        SYSTEMIC_FLOW_CHANNEL, VALVE_LEFT_CHANNEL, VALVE_RIGHT_CHANNEL,
+    },
 };
 
 #[cfg(feature = "nidaq")]
@@ -34,7 +39,7 @@ fn initialize_nidaq() -> Result<Nidaq> {
     let out = NidaqBuilder::new()
         .initialize()?
         .with_analog_input_channel(
-            "pressure_systemic_preload",
+            PRESSURE_SYSTEMIC_PRELOAD_CHANNEL,
             AnalogInputChannel {
                 channel: "ai0",
                 min: 0.0,
@@ -42,7 +47,7 @@ fn initialize_nidaq() -> Result<Nidaq> {
             },
         )?
         .with_analog_input_channel(
-            "pressure_systemic_afterload",
+            PRESSURE_SYSTEMIC_AFTERLOAD_CHANNEL,
             AnalogInputChannel {
                 channel: "ai0",
                 min: 0.0,
@@ -50,7 +55,7 @@ fn initialize_nidaq() -> Result<Nidaq> {
             },
         )?
         .with_analog_input_channel(
-            "regulator_actual_pressure",
+            REGULATOR_ACTUAL_PRESSURE_CHANNEL,
             AnalogInputChannel {
                 channel: "ai4",
                 min: 0.0,
@@ -58,7 +63,7 @@ fn initialize_nidaq() -> Result<Nidaq> {
             },
         )?
         .with_analog_input_channel(
-            "systemic_flow",
+            SYSTEMIC_FLOW_CHANNEL,
             AnalogInputChannel {
                 channel: "ai6",
                 min: 0.0,
@@ -66,7 +71,7 @@ fn initialize_nidaq() -> Result<Nidaq> {
             },
         )?
         .with_analog_input_channel(
-            "pulmonary_flow",
+            PULMONARY_FLOW_CHANNEL,
             AnalogInputChannel {
                 channel: "ai7",
                 min: 0.0,
@@ -74,7 +79,7 @@ fn initialize_nidaq() -> Result<Nidaq> {
             },
         )?
         .with_analog_output_channel(
-            "regulator_set_pressure",
+            REGULATOR_ACTUAL_PRESSURE_CHANNEL,
             AnalogOutputChannel {
                 channel: "ao0",
                 min: 0.0,
@@ -82,13 +87,13 @@ fn initialize_nidaq() -> Result<Nidaq> {
             },
         )?
         .with_digital_output_channel(
-            "valve_left",
+            VALVE_LEFT_CHANNEL,
             DigitalOutputChannel {
                 channel: "port0/line0",
             },
         )?
         .with_digital_output_channel(
-            "valve_right",
+            VALVE_RIGHT_CHANNEL,
             DigitalOutputChannel {
                 channel: "port0/line1",
             },
