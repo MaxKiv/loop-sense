@@ -16,6 +16,8 @@ use crate::controller::backend::mockloop_hardware::{
 
 use super::backend::mockloop_hardware::MockloopHardware;
 
+const DEFAULT_CONTROL_LOOP_PERIOD: Duration = Duration::from_millis(10);
+
 /// Setpoint for the mockloop controller
 #[derive(Clone, Deserialize, Serialize)]
 pub struct ControllerSetpoint {
@@ -53,7 +55,9 @@ impl Default for ControllerSetpoint {
             enable: false,
             heart_rate: Frequency::new::<hertz>(80.0 / 60.0),
             pressure: Pressure::new::<bar>(0.0),
-            loop_frequency: Frequency::new::<hertz>(10.0),
+            loop_frequency: Frequency::new::<hertz>(
+                1.0 / DEFAULT_CONTROL_LOOP_PERIOD.as_secs_f64(),
+            ),
             systole_ratio: 3.0 / 7.0,
         }
     }
