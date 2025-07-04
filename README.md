@@ -7,9 +7,11 @@ designed to run on a SBC (e.g. Raspberry pi 3/4/5).
 It interfaces with a microcontroller/PLC via EtherCAT, logs sensor data and
 mockloop state to InfluxDB3 and hosts a web interface for monitoring.
 
+<img src="./data/mockloop_architecture.svg" alt="Mockloop Architecture" width="800"/>
+
 # Architecture
 
-<img src="./data/mockloop_architecture.svg" alt="Mockloop Architecture" width="400"/>
+<img src="./data/loop-sense.svg" alt="Mockloop Architecture" width="800"/>
 
 # Features
 
