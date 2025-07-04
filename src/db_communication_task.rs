@@ -12,7 +12,7 @@ use tokio::sync::mpsc::Receiver;
 use tokio::time::{self, Duration, Instant};
 use tracing::{debug, error, info, warn};
 
-const DB_LOOP_PERIOD_MS: Duration = Duration::from_millis(100);
+const DB_LOOP_PERIOD: Duration = Duration::from_millis(10);
 const QUERY_BATCH_LEN: usize = 100;
 const DEFAULT_MEASUREMENT_ID: usize = 1;
 
@@ -37,7 +37,7 @@ type TableName = String;
 /// Log recorded sensor data and logs to the database
 pub async fn communicate_with_db(mut db_receiver: Receiver<SensorData>) {
     // Loop timekeeping
-    let mut next_tick_time = Instant::now() + DB_LOOP_PERIOD_MS;
+    let mut next_tick_time = Instant::now() + DB_LOOP_PERIOD;
 
     // Initialize DB connection
     let db_client = Arc::new(Client::new(DB_URI, DB_NAME).with_token(DB_ACCESS_TOKEN));
@@ -82,7 +82,7 @@ pub async fn communicate_with_db(mut db_receiver: Receiver<SensorData>) {
         }
 
         // Loop timekeeping
-        next_tick_time += DB_LOOP_PERIOD_MS;
+        next_tick_time += DB_LOOP_PERIOD;
         time::sleep_until(next_tick_time).await;
     }
 }
