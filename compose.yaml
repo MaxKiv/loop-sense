@@ -1,0 +1,60 @@
+# networks:
+#   influxdb3:
+#     name: influxdb3
+
+services:
+
+  init-db-volume: # Provision the DB AUTH tokens and default tables by recovering the docker volume used by influxdb3
+    image: alpine
+    container_name: init-db-volume
+    volumes:
+      - influxdb3_data:/data
+      - ./snapshot/influxdb3-data.tar.gz:/backup/influxdb3-data.tar.gz:ro
+      - ./snapshot/restore-volume.sh:/restore.sh:ro
+    entrypoint: ["/bin/sh", "/restore.sh"]
+    restart: "no"
+
+  db: # Container running InfluxDB3, a time series optimized database
+    image: influxdb@sha256:c8a97fa106aef068619ed0f809be49b757060eae65830e230e9e0d2304f94182
+    container_name: db
+    depends_on:
+      init-db-volume:
+        condition: service_completed_successfully
+        restart: true
+    command:
+      - influxdb3
+      - serve
+      - --node-id=node0
+      - --object-store=file
+      - --data-dir=/var/lib/influxdb3 # Persistent volume
+    ports:
+      - 8181:8181  # Map host port 8181 to container port 8181
+    # NOTE: this would be nice but does not work in latest influxdb3 version, which is why we provision the DB using init-db-volume above
+    # environment:
+    #   - INFLUXDB3_AUTH_TOKEN=${INFLUXDB3_AUTH_TOKEN}  # Set admin token from .env file
+    volumes:
+      - influxdb3_data:/var/lib/influxdb3  # Persist data in volume
+    healthcheck:
+      test: ["CMD", "curl", "-sSf", "--header", "Authorization: Token ${INFLUXDB3_AUTH_TOKEN}", "http://localhost:8181/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    # networks:
+    #   - influxdb3 # This doesn't work on my machine :(
+
+
+  # explorer:
+  #   image: influxdata/influxdb3-ui@sha256:b83d2727e9755c01e910a59c1593c67be62242917dcb18650b425453819332d5
+  #   hostname: influxdb3-explorer
+  #   ports:
+  #     - 8888:80
+  #     - 8889:8888
+  #   # networks:
+  #   #   - influxdb3
+  #   volumes:
+  #     - influxdb3_data:/var/lib/influxdb3
+
+volumes:
+  influxdb3_data:

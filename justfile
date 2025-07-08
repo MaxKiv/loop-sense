@@ -34,3 +34,7 @@ id-db:
 
 tables-db:
     INFLUXDB3_AUTH_TOKEN=apiv3_5zB9k-A7Eora5iMy3epTdWi6NjaRzTvF2jx1mprt98l2z4eOl2tyZTLdnjHzzmqB4kwD_z681ynKVaSXf4Lvcw influxdb3 query --database mockloop_data "SHOW TABLES"
+
+# Snapshots the docker volume used by the influxdb3 container
+docker-save-db-volume:
+    docker run --rm -v loop-sense_influxdb3_data:/data -v $PWD/snapshot:/backup alpine tar czf /backup/influxdb3-data.tar.gz -C /data .
