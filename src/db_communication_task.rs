@@ -11,7 +11,7 @@ use tokio::sync::mpsc::Receiver;
 use tokio::time::{self, Duration, Instant};
 use tracing::{debug, error, info, warn};
 
-const DB_LOOP_PERIOD: Duration = Duration::from_millis(10);
+const DB_LOOP_PERIOD: Duration = Duration::from_millis(100);
 const QUERY_BATCH_LEN: usize = 100;
 const DEFAULT_MEASUREMENT_ID: usize = 1;
 

@@ -23,11 +23,11 @@ pub const SET_REGULATOR_PRESSURE_CHANNEL: &str = "regulator_set_pressure";
 pub const SYSTEMIC_FLOW_CHANNEL: &str = "systemic_flow";
 pub const PULMONARY_FLOW_CHANNEL: &str = "pulmonary_flow";
 pub const VALVE_LEFT_CHANNEL: &str = "valve_left";
-pub const VALVE_RIGHT_CHANNEL: &str = "valve_rigth";
+pub const VALVE_RIGHT_CHANNEL: &str = "valve_right";
 
 impl MockloopHardware for Nidaq {
     fn set_regulator_pressure(&mut self, pressure: Pressure) -> Result<()> {
-        debug!("setting regulator pressure {:?}", pressure);
+        info!("setting regulator pressure {:?}", pressure);
         let pressure = pressure_to_voltage(
             pressure,
             Pressure::new::<bar>(REGULATOR_MIN_PRESSURE_BAR),
@@ -48,7 +48,7 @@ impl MockloopHardware for Nidaq {
     }
 
     fn set_valve(&mut self, valve: Valve, setpoint: ValveState) -> Result<()> {
-        debug!("setting valve {:?} to {:?}", valve, setpoint);
+        info!("setting valve {:?} to {:?}", valve, setpoint);
         let channel_name = match valve {
             Valve::Left => &VALVE_LEFT_CHANNEL,
             Valve::Right => &VALVE_RIGHT_CHANNEL,

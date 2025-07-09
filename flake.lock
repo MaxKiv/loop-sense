@@ -1268,6 +1268,22 @@
     },
     "nixos-hardware": {
       "locked": {
+        "lastModified": 1752048960,
+        "narHash": "sha256-gATnkOe37eeVwKKYCsL+OnS2gU4MmLuZFzzWCtaKLI8=",
+        "owner": "nixos",
+        "repo": "nixos-hardware",
+        "rev": "7ced9122cff2163c6a0212b8d1ec8c33a1660806",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "ref": "master",
+        "repo": "nixos-hardware",
+        "type": "github"
+      }
+    },
+    "nixos-hardware_2": {
+      "locked": {
         "lastModified": 1746814339,
         "narHash": "sha256-hf2lICJzwACWuzHCmZn5NI6LUAOgGdR1yh8ip+duyhk=",
         "owner": "nixos",
@@ -1470,6 +1486,7 @@
         "crane": "crane",
         "fenix": "fenix",
         "flake-utils": "flake-utils",
+        "nixos-hardware": "nixos-hardware",
         "nixpkgs": [
           "your-nixos-flake",
           "nixpkgs"
@@ -1889,7 +1906,7 @@
         "nil-lsp": "nil-lsp",
         "nix-gaming": "nix-gaming",
         "nixos-generators": "nixos-generators",
-        "nixos-hardware": "nixos-hardware",
+        "nixos-hardware": "nixos-hardware_2",
         "nixpkgs": "nixpkgs_5",
         "plasma-manager": "plasma-manager",
         "sops-nix": "sops-nix",
