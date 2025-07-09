@@ -16,7 +16,7 @@ use crate::controller::backend::mockloop_hardware::{
 
 use super::backend::mockloop_hardware::MockloopHardware;
 
-const DEFAULT_CONTROL_LOOP_PERIOD: Duration = Duration::from_millis(10);
+const DEFAULT_CONTROL_LOOP_PERIOD: Duration = Duration::from_millis(100);
 
 /// Setpoint for the mockloop controller
 #[derive(Clone, Deserialize, Serialize)]

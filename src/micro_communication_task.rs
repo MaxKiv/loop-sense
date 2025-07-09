@@ -5,7 +5,7 @@ use tokio::sync::mpsc::Sender;
 use tokio::time::{self, Duration, Instant};
 use tracing::{error, info, warn};
 
-const COMMS_LOOP_PERIOD: Duration = Duration::from_millis(10);
+const COMMS_LOOP_PERIOD: Duration = Duration::from_millis(100);
 
 pub async fn communicate_with_micro<C: MockloopCommunicator>(
     mut communicator: C,
