@@ -37,8 +37,10 @@ unsafe impl Send for TaskHandleWrapper {}
 
 #[derive(Debug)]
 pub struct NidaqBuilder<S> {
-    read_task_handle: Option<TaskHandleWrapper>,
-    write_task_handle: Option<TaskHandleWrapper>,
+    read_analog_task_handle: Option<TaskHandleWrapper>,
+    write_analog_task_handle: Option<TaskHandleWrapper>,
+    read_digital_task_handle: Option<TaskHandleWrapper>,
+    write_digital_task_handle: Option<TaskHandleWrapper>,
     analog_input_channels: HashMap<ChannelName, AnalogInputChannel>,
     analog_output_channels: HashMap<ChannelName, AnalogOutputChannel>,
     digital_input_channels: HashMap<ChannelName, DigitalInputChannel>,
@@ -51,8 +53,10 @@ pub struct NidaqBuilder<S> {
 impl NidaqBuilder<NotInitialized> {
     pub fn new() -> Self {
         Self {
-            read_task_handle: None,
-            write_task_handle: None,
+            read_analog_task_handle: None,
+            write_analog_task_handle: None,
+            read_digital_task_handle: None,
+            write_digital_task_handle: None,
             analog_input_channels: HashMap::new(),
             analog_output_channels: HashMap::new(),
             digital_input_channels: HashMap::new(),
@@ -64,20 +68,30 @@ impl NidaqBuilder<NotInitialized> {
     }
 
     pub fn initialize(self) -> Result<NidaqBuilder<Initialized>> {
-        let mut read_task_handle = std::ptr::null_mut();
-        let mut write_task_handle = std::ptr::null_mut();
+        let mut read_analog_task_handle = std::ptr::null_mut();
+        let mut write_analog_task_handle = std::ptr::null_mut();
+        let mut read_digital_task_handle = std::ptr::null_mut();
+        let mut write_digital_task_handle = std::ptr::null_mut();
 
         unsafe {
-            check_err(DAQmxCreateTask(ptr::null(), &mut read_task_handle))?;
-            check_err(DAQmxCreateTask(ptr::null(), &mut write_task_handle))?;
+            check_err(DAQmxCreateTask(ptr::null(), &mut read_analog_task_handle))?;
+            check_err(DAQmxCreateTask(ptr::null(), &mut write_analog_task_handle))?;
+            check_err(DAQmxCreateTask(ptr::null(), &mut read_digital_task_handle))?;
+            check_err(DAQmxCreateTask(ptr::null(), &mut write_digital_task_handle))?;
         }
 
         Ok(NidaqBuilder::<Initialized> {
-            read_task_handle: Some(TaskHandleWrapper {
-                inner: read_task_handle,
+            read_analog_task_handle: Some(TaskHandleWrapper {
+                inner: read_analog_task_handle,
             }),
-            write_task_handle: Some(TaskHandleWrapper {
-                inner: write_task_handle,
+            write_analog_task_handle: Some(TaskHandleWrapper {
+                inner: write_analog_task_handle,
+            }),
+            read_digital_task_handle: Some(TaskHandleWrapper {
+                inner: read_digital_task_handle,
+            }),
+            write_digital_task_handle: Some(TaskHandleWrapper {
+                inner: write_digital_task_handle,
             }),
             analog_input_channels: self.analog_input_channels.clone(),
             analog_output_channels: self.analog_output_channels.clone(),
@@ -147,35 +161,39 @@ impl NidaqBuilder<Initialized> {
     /// Set sampling configuration for the nidaq tasks
     /// NOTE: this must only be called once, after the virtual channels have been assigned
     fn cfg_samp_clk_timing(&self) -> Result<()> {
-        unsafe {
-            let err = DAQmxCfgSampClkTiming(
-                self.read_task_handle
-                    .as_ref()
-                    .expect("read task handle should exist after build step")
-                    .inner,
-                ptr::null(),
-                COMBINED_TASK_SAMPLE_RATE
-                    / (self.analog_input_channels.len() + self.digital_input_channels.len()) as f64,
-                DAQmx_Val_Rising as i32,
-                DAQmx_Val_ContSamps as i32,
-                READ_SAMPLES_PER_CHANNEL,
-            );
-            check_err(err)?;
-            let err = DAQmxCfgSampClkTiming(
-                self.write_task_handle
-                    .as_ref()
-                    .expect("write task handle should exist after build step")
-                    .inner,
-                ptr::null(),
-                COMBINED_TASK_SAMPLE_RATE
-                    / (self.analog_output_channels.len() + self.digital_output_channels.len())
-                        as f64,
-                DAQmx_Val_Rising as i32,
-                DAQmx_Val_ContSamps as i32,
-                READ_SAMPLES_PER_CHANNEL,
-            );
-            check_err(err)?;
+        let handles = vec![
+            self.read_analog_task_handle
+                .as_ref()
+                .expect("read analog handle should exist after build step"),
+            self.write_analog_task_handle
+                .as_ref()
+                .expect("write analog handle should exist after build step"),
+            self.read_digital_task_handle
+                .as_ref()
+                .expect("write digital handle should exist after build step"),
+            self.write_digital_task_handle
+                .as_ref()
+                .expect("write digital handle should exist after build step"),
+        ];
+
+        for handle in handles {
+            unsafe {
+                let err = DAQmxCfgSampClkTiming(
+                    handle.inner,
+                    ptr::null(),
+                    COMBINED_TASK_SAMPLE_RATE
+                        / (self.analog_output_channels.len()
+                            + self.digital_output_channels.len()
+                            + self.analog_output_channels.len()
+                            + self.digital_output_channels.len()) as f64,
+                    DAQmx_Val_Rising as i32,
+                    DAQmx_Val_ContSamps as i32,
+                    READ_SAMPLES_PER_CHANNEL,
+                );
+                check_err(err)?;
+            }
         }
+
         Ok(())
     }
 
@@ -193,7 +211,7 @@ impl NidaqBuilder<Initialized> {
 
             unsafe {
                 let err = DAQmxCreateAIVoltageChan(
-                    self.read_task_handle
+                    self.read_analog_task_handle
                         .as_ref()
                         .expect("read task handle should exist after build step")
                         .inner,
@@ -221,7 +239,7 @@ impl NidaqBuilder<Initialized> {
 
             unsafe {
                 let err = DAQmxCreateAOVoltageChan(
-                    self.write_task_handle
+                    self.write_analog_task_handle
                         .as_ref()
                         .expect("write task handle should exist after build step")
                         .inner,
@@ -246,7 +264,7 @@ impl NidaqBuilder<Initialized> {
 
             unsafe {
                 let err = DAQmxCreateDIChan(
-                    self.read_task_handle
+                    self.read_digital_task_handle
                         .as_ref()
                         .expect("read task handle should exist after build step")
                         .inner,
@@ -268,7 +286,7 @@ impl NidaqBuilder<Initialized> {
 
             unsafe {
                 let err = DAQmxCreateDIChan(
-                    self.read_task_handle
+                    self.write_digital_task_handle
                         .as_ref()
                         .expect("read task handle should exist after build step")
                         .inner,
@@ -284,42 +302,55 @@ impl NidaqBuilder<Initialized> {
         self.cfg_samp_clk_timing()?;
 
         // Start Nidaq tasks
-        unsafe {
-            check_err(DAQmxStartTask(
-                self.read_task_handle
-                    .as_ref()
-                    .expect("read task handle should exist after build step")
-                    .inner,
-            ))?;
-            check_err(DAQmxStartTask(
-                self.write_task_handle
-                    .as_ref()
-                    .expect("write task handle should exist after build step")
-                    .inner,
-            ))?;
+        let handles = vec![
+            self.read_analog_task_handle
+                .as_ref()
+                .expect("read analog handle should exist after build step"),
+            self.write_analog_task_handle
+                .as_ref()
+                .expect("write analog handle should exist after build step"),
+            self.read_digital_task_handle
+                .as_ref()
+                .expect("write digital handle should exist after build step"),
+            self.write_digital_task_handle
+                .as_ref()
+                .expect("write digital handle should exist after build step"),
+        ];
+        for handle in handles {
+            unsafe {
+                check_err(DAQmxStartTask(handle.inner))?;
+            }
         }
-        let num_read_channels =
-            self.analog_input_channels.len() as u32 + self.digital_input_channels.len() as u32;
-        let num_write_channels =
-            self.analog_output_channels.len() as u32 + self.digital_output_channels.len() as u32;
 
         Ok(Nidaq {
-            read_task_handle: TaskHandleWrapper {
+            read_analog_task_handle: TaskHandleWrapper {
                 inner: self
-                    .read_task_handle
+                    .read_analog_task_handle
                     .as_ref()
-                    .expect("read_task_handle should be initialized during build step")
+                    .expect("read_analog_task_handle should be initialized during build step")
                     .inner,
             },
-            write_task_handle: TaskHandleWrapper {
+            write_analog_task_handle: TaskHandleWrapper {
                 inner: self
-                    .write_task_handle
+                    .write_analog_task_handle
                     .as_ref()
-                    .expect("write_task_handle should be initialized during build step")
+                    .expect("write_analog_task_handle should be initialized during build step")
                     .inner,
             },
-            num_read_channels,
-            num_write_channels,
+            read_digital_task_handle: TaskHandleWrapper {
+                inner: self
+                    .read_digital_task_handle
+                    .as_ref()
+                    .expect("write_digital_task_handle should be initialized during build step")
+                    .inner,
+            },
+            write_digital_task_handle: TaskHandleWrapper {
+                inner: self
+                    .write_digital_task_handle
+                    .as_ref()
+                    .expect("read_digital_task_handle should be initialized during build step")
+                    .inner,
+            },
             analog_input_channels: self.analog_input_channels.clone(),
             analog_output_channels: self.analog_output_channels.clone(),
             digital_input_channels: self.digital_input_channels.clone(),
@@ -328,21 +359,21 @@ impl NidaqBuilder<Initialized> {
 
             current_setpoint: NidaqWriteData {
                 analog: Array2::zeros((
-                    num_write_channels as usize,
+                    self.analog_input_channels.len(),
                     WRITE_SAMPLES_PER_CHANNEL as usize,
                 )),
                 digital: Array2::zeros((
-                    num_write_channels as usize,
+                    self.digital_input_channels.len(),
                     WRITE_SAMPLES_PER_CHANNEL as usize,
                 )),
             },
             current_data: NidaqReading {
                 analog: Array2::zeros((
-                    num_read_channels as usize,
+                    self.analog_output_channels.len(),
                     READ_SAMPLES_PER_CHANNEL as usize,
                 )),
                 digital: Array2::zeros((
-                    num_read_channels as usize,
+                    self.digital_output_channels.len(),
                     READ_SAMPLES_PER_CHANNEL as usize,
                 )),
             },
@@ -352,12 +383,12 @@ impl NidaqBuilder<Initialized> {
 
 impl<S> Drop for NidaqBuilder<S> {
     fn drop(&mut self) {
-        if let Some(handle) = &self.read_task_handle {
+        if let Some(handle) = &self.read_analog_task_handle {
             unsafe {
                 DAQmxClearTask(handle.inner);
             }
         }
-        if let Some(handle) = &self.write_task_handle {
+        if let Some(handle) = &self.write_analog_task_handle {
             unsafe {
                 DAQmxClearTask(handle.inner);
             }
@@ -367,16 +398,16 @@ impl<S> Drop for NidaqBuilder<S> {
 
 #[derive(Debug)]
 pub struct Nidaq {
-    read_task_handle: TaskHandleWrapper,
-    write_task_handle: TaskHandleWrapper,
+    read_analog_task_handle: TaskHandleWrapper,
+    write_analog_task_handle: TaskHandleWrapper,
+    read_digital_task_handle: TaskHandleWrapper,
+    write_digital_task_handle: TaskHandleWrapper,
     /// Nidaqmx expects a full set of setpoints on every write, this tracks the latest setpoints.
     /// Setpoints are mutated through the public methods of this struct
     /// NOTE: This means we write zeros to everything before setpoints are received, this is fine.
     current_setpoint: NidaqWriteData,
     /// Nidaqmx reads all sensordata at once, this tracks the latest reading for further processing in the public methods
     current_data: NidaqReading,
-    num_read_channels: u32,
-    num_write_channels: u32,
     analog_input_channels: HashMap<ChannelName, AnalogInputChannel>,
     analog_output_channels: HashMap<ChannelName, AnalogOutputChannel>,
     digital_input_channels: HashMap<ChannelName, DigitalInputChannel>,
@@ -387,10 +418,16 @@ pub struct Nidaq {
 impl Drop for Nidaq {
     fn drop(&mut self) {
         unsafe {
-            DAQmxClearTask(self.read_task_handle.inner);
+            DAQmxClearTask(self.read_analog_task_handle.inner);
         }
         unsafe {
-            DAQmxClearTask(self.write_task_handle.inner);
+            DAQmxClearTask(self.write_analog_task_handle.inner);
+        }
+        unsafe {
+            DAQmxClearTask(self.read_digital_task_handle.inner);
+        }
+        unsafe {
+            DAQmxClearTask(self.write_digital_task_handle.inner);
         }
     }
 }
@@ -399,18 +436,20 @@ impl Nidaq {
     /// Read all data from the nidaq
     pub fn read(&self) -> Result<NidaqReading> {
         let mut analog = Array2::zeros((
-            self.num_read_channels as usize,
+            self.analog_input_channels.len(),
             READ_SAMPLES_PER_CHANNEL as usize,
         ));
         let mut read_samples_per_channel: i32 = 0;
         unsafe {
             let err = DAQmxReadAnalogF64(
-                self.read_task_handle.inner,
+                self.read_analog_task_handle.inner,
                 DAQmx_Val_Auto,
                 COMMS_WAIT_TIME.as_seconds_f64(),
                 DAQmx_Val_GroupByChannel,
                 analog.as_mut_ptr(),
-                READ_SAMPLES_PER_CHANNEL as u32 * self.num_read_channels,
+                (READ_SAMPLES_PER_CHANNEL * self.analog_output_channels.len() as u64)
+                    .try_into()
+                    .unwrap(),
                 &mut read_samples_per_channel,
                 ptr::null_mut(),
             );
@@ -426,17 +465,17 @@ impl Nidaq {
         }
 
         let mut digital = Array2::zeros((
-            self.num_read_channels as usize,
+            self.digital_input_channels.len(),
             READ_SAMPLES_PER_CHANNEL as usize,
         ));
         unsafe {
             let err = DAQmxReadDigitalU8(
-                self.read_task_handle.inner,
+                self.read_analog_task_handle.inner,
                 DAQmx_Val_Auto,
                 COMMS_WAIT_TIME.as_seconds_f64(),
                 DAQmx_Val_GroupByChannel,
                 digital.as_mut_ptr(),
-                READ_SAMPLES_PER_CHANNEL as u32 * self.num_read_channels,
+                READ_SAMPLES_PER_CHANNEL as u32 * self.analog_input_channels.len() as u32,
                 &mut read_samples_per_channel,
                 ptr::null_mut(),
             );
@@ -475,7 +514,7 @@ impl Nidaq {
         let mut written_samples_per_channel: i32 = 0;
         unsafe {
             let err = DAQmxWriteAnalogF64(
-                self.write_task_handle.inner,
+                self.write_analog_task_handle.inner,
                 WRITE_SAMPLES_PER_CHANNEL as i32,
                 0,
                 COMMS_WAIT_TIME.as_seconds_f64(),
@@ -497,7 +536,7 @@ impl Nidaq {
 
         unsafe {
             let err = DAQmxWriteDigitalU8(
-                self.write_task_handle.inner,
+                self.write_analog_task_handle.inner,
                 WRITE_SAMPLES_PER_CHANNEL as i32,
                 0,
                 COMMS_WAIT_TIME.as_seconds_f64(),
