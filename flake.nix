@@ -10,6 +10,9 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     crane.url = "github:ipetkov/crane";
+
+    # NixOS inputs
+    nixos-hardware.url = "github:nixos/nixos-hardware/master";
   };
 
   # Outputs this flake produces
@@ -98,51 +101,30 @@
               else ""
             );
         };
-
-      fhs_env = pkgs.buildFHSEnv {
-        name = "fhs_shell";
-        targetPkgs = pkgs: with pkgs; [
-          gcc
-          influxdb3
-          rust-analyzer
-          toolchain
-        ];
-        profile = ''
-          export RUST_BACKTRACE=full
-          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(realpath ./vendor/nidaqmx/lib64/gcc)
-        '';
-        runScript = "bash";
-      };
     in {
       # Development shells provided by this flake, to use:
       # nix develop .#default
       devShell = pkgs.mkShell {
-          # Required by the nidaqmx lib
-          LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
-            pkgs.stdenv.cc.cc
-          ];
+        # Required by the nidaqmx lib
+        LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
+          pkgs.stdenv.cc.cc
+        ];
+        RUST_BACKTRACE = "full";
 
-          buildInputs = with pkgs; [
-            zig_0_13 # zig toolchain, used to compile Windows MSVC binaries
-            nil # Nix LSP
-            alejandra # Nix Formatter
-            toolchain # Our Rust toolchain
-            rust-analyzer # Rust LSP
+        buildInputs = with pkgs; [
+          zig_0_13 # zig toolchain, used to compile Windows MSVC binaries
+          nil # Nix LSP
+          alejandra # Nix Formatter
+          toolchain # Our Rust toolchain
+          rust-analyzer # Rust LSP
 
-            cargo-xwin # easy windows x-compilation
+          cargo-xwin # easy windows x-compilation
 
-            influxdb3 # Timeseries Database
-          ];
+          influxdb3 # Timeseries Database
+        ];
+      };
 
-          RUST_BACKTRACE = "full";
-
-          # shellHook = ''
-          #     export LD_LIBRARY_PATH="${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.libstdcxx}/lib:$LD_LIBRARY_PATH"
-          #     export RUST_BACKTRACE=full
-          #     echo "LD_LIBRARY_PATH set to: $LD_LIBRARY_PATH"
-          #   '';
-        };
-
+      # Build outputs of this flake, accessible using nix build .#{output}
       packages = {
         default = buildForTarget "x86_64-unknown-linux-gnu" "sim";
         nidaq = buildForTarget "x86_64-unknown-linux-gnu" "nidaq";
@@ -150,6 +132,26 @@
         windows-msvc = buildForTarget "x86_64-pc-windows-msvc" "nidaq";
       };
 
-      formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.alejandra;
+      # formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.alejandra;
+
+      # Nixos Configuration outputs of this flake, accesible using nixos-rebuild .#{output}
+      nixosConfigurations = {
+        "rpi3" = let
+          hostname = "rpi3";
+          username = "max";
+          system = "aarch64-linux";
+        in
+          nixpkgs.lib.nixosSystem {
+            specialArgs =
+              {
+                sshPublicKeys = import ./nixos/resources/ssh_public_keys.nix;
+                inherit system hostname username inputs;
+              }
+              // inputs;
+            modules = [
+              ./nixos/rpi3
+            ];
+          };
+      };
     });
 }
