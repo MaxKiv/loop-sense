@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+#
+# To capture a snapshot of an influxdb3 instance running in docker, run `just docker-save-db-volume`
 
 set -e
 
