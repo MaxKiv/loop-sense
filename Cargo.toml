@@ -28,6 +28,6 @@ tokio = { version = "1.45.1", features = ["full"] }
 tower = "0.5.2"
 
 [features]
-default = ["nidaq"]
+default = ["sim"]
 sim = []
 nidaq = []
