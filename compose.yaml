@@ -10,8 +10,8 @@ services:
     volumes:
       - influxdb3_data:/data
       - ./snapshot/influxdb3-data.tar.gz:/backup/influxdb3-data.tar.gz:ro
-      - ./snapshot/restore-volume.sh:/restore.sh:ro
-    entrypoint: ["/bin/sh", "/restore.sh"]
+      - ./snapshot/restore-volume.sh:/restore-volume.sh:ro
+    entrypoint: ["/bin/sh", "/restore-volume.sh"]
     restart: "no"
 
   db: # Container running InfluxDB3, a time series optimized database
@@ -34,6 +34,7 @@ services:
     #   - INFLUXDB3_AUTH_TOKEN=${INFLUXDB3_AUTH_TOKEN}  # Set admin token from .env file
     volumes:
       - influxdb3_data:/var/lib/influxdb3  # Persist data in volume
+      - ./test.lp:/test.lp:rw
     healthcheck:
       test: ["CMD", "curl", "-sSf", "--header", "Authorization: Token ${INFLUXDB3_AUTH_TOKEN}", "http://localhost:8181/health"]
       interval: 30s
@@ -45,6 +46,7 @@ services:
     #   - influxdb3 # This doesn't work on my machine :(
 
 
+  # NOTE: Influxdb explorer is a visual front-end for influxdb3, would be nice but it's bleeding edge and seems broken atm
   # explorer:
   #   image: influxdata/influxdb3-ui@sha256:b83d2727e9755c01e910a59c1593c67be62242917dcb18650b425453819332d5
   #   hostname: influxdb3-explorer
