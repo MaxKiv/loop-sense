@@ -12,6 +12,9 @@ docker-save-db-volume:
 docker-run-db:
     docker compose up
 
+rpi-build:
+    nix build .#nixosConfigurations.aarch64-linux.rpi3.config.system.build.toplevel
+
 ### Debug commands ###
 
 # send a test controller setpoint using curl

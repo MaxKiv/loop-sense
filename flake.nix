@@ -135,23 +135,19 @@
       # formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.alejandra;
 
       # Nixos Configuration outputs of this flake, accesible using nixos-rebuild .#{output}
-      nixosConfigurations = {
-        "rpi3" = let
-          hostname = "rpi3";
-          username = "max";
-          system = "aarch64-linux";
-        in
-          nixpkgs.lib.nixosSystem {
-            specialArgs =
-              {
-                sshPublicKeys = import ./nixos/resources/ssh_public_keys.nix;
-                inherit system hostname username inputs;
-              }
-              // inputs;
-            modules = [
-              ./nixos/rpi3
-            ];
-          };
+      nixosConfigurations."rpi3" = nixpkgs.lib.nixosSystem {
+        system = "aarch64-linux";
+        specialArgs =
+          {
+            hostname = "rpi3";
+            username = "max";
+            sshPublicKeys = import ./nixos/resources/ssh_public_keys.nix;
+            inherit inputs;
+          }
+          // inputs;
+        modules = [
+          ./nixos/rpi3
+        ];
       };
     });
 }
