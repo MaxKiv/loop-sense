@@ -16,6 +16,8 @@
     ./ssh.nix
   ];
 
+  boot.binfmt.emulatedSystems = [ "aarch64-linux" ]
+
   nix.settings.experimental-features = ["nix-command" "flakes"];
 
   hardware.enableRedistributableFirmware = true;

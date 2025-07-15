@@ -5,13 +5,25 @@ help:
 run:
     cargo run --features sim
 
+# Snapshots the docker volume used by the influxdb3 container
+docker-save-db-volume:
+    docker run --rm -v loop-sense_influxdb3_data:/data -v $PWD/snapshot:/backup alpine tar czf /backup/influxdb3-data.tar.gz -C /data .
+
+docker-run-db:
+    docker compose up
+
+rpi-build:
+    nix build .#nixosConfigurations.aarch64-linux.rpi3.config.system.build.toplevel
+
+### Debug commands ###
+
 # send a test controller setpoint using curl
 post:
     curl -X POST http://localhost:8000/setpoint      -H "Content-Type: application/json"      -d "{\"enable\":true,\"heart_rate\":1.3333334,\"pressure\":3000.0,\"loop_frequency\":100.0,\"systole_ratio\":0.42857143}"
 
 # get sensor data using curl
 get:
-    curl -X GET http://localhost:8000/data
+    curl -X GET http://localhost:8181/api/v3/query_sql?db=mockloop_data&q=SELECT * from test_data
 
 file-db:
     influxdb3 serve --bearer-token 3ba49996a6de5af183b4e05326b2e13642c7300540d9e2a0b8908bb62275148dd45ef1f39a867e81709d7da42bda7d57edf9cd0cfa1b864fc00278f5b0c93182 --node-id host01   --object-store file   --data-dir ./.influxdb3
