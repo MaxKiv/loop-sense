@@ -13,16 +13,19 @@
     inputs.nixos-hardware.nixosModules.raspberry-pi-3
     ./network.nix
     ./user.nix
+    ./pkgs.nix
     ./ssh.nix
+    ./virt.nix
+    ./influxdb.nix
+    ./uart.nix
   ];
-
-  boot.binfmt.emulatedSystems = [ "aarch64-linux" ]
 
   nix.settings.experimental-features = ["nix-command" "flakes"];
 
-  hardware.enableRedistributableFirmware = true;
+  # Trust users in the wheel (sudo) group, used to rebuild over ssh
+  nix.settings.trusted-users = ["@wheel"];
 
-  nixpkgs.hostPlatform = "aarch64-linux";
+  hardware.enableRedistributableFirmware = true;
 
   boot.initrd.availableKernelModules = ["usbhid"];
 

@@ -12,8 +12,22 @@ docker-save-db-volume:
 docker-run-db:
     docker compose up
 
+# Manual rpi3 system image build command
 rpi-build:
-    nix build .#nixosConfigurations.aarch64-linux.rpi3.config.system.build.toplevel
+    nix build .#nixosConfigurations.aarch64-linux.rpi3.config.system.build.toplevel --print-out-paths
+
+# Manual rpi3 system image copy command
+rpi-copy:
+    nix copy [store-path-from-rpi-build] --to ssh://root@192.168.0.2
+
+# Manual rpi3 system image copy command 2
+rpi-ssh-switch:
+    ssh -v root@192.168.0.2
+    nixos-install --root / --system [store-path-from-rpi-build]
+
+# Build rpi3 image, copy to rpi3 and switch system
+rpi-switch:
+    nixos-rebuild switch --flake .#rpi3 --target-host root@192.168.0.2  --use-remote-sudo --build-host localhost --verbose --show-trace
 
 ### Debug commands ###
 
@@ -47,6 +61,6 @@ id-db:
 tables-db:
     INFLUXDB3_AUTH_TOKEN=apiv3_5zB9k-A7Eora5iMy3epTdWi6NjaRzTvF2jx1mprt98l2z4eOl2tyZTLdnjHzzmqB4kwD_z681ynKVaSXf4Lvcw influxdb3 query --database mockloop_data "SHOW TABLES"
 
-# Snapshots the docker volume used by the influxdb3 container
-docker-save-db-volume:
-    docker run --rm -v loop-sense_influxdb3_data:/data -v $PWD/snapshot:/backup alpine tar czf /backup/influxdb3-data.tar.gz -C /data .
+# SSH into rpi3
+ssh:
+    ssh -v root@192.168.0.2

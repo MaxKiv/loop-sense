@@ -15,6 +15,8 @@ pub async fn communicate_with_micro<C: MockloopCommunicator>(
     let mut next_tick_time = Instant::now() + COMMS_LOOP_PERIOD;
     loop {
         // TODO: use tokio select instead of awaiting communicator sequentially?
+        // Doesn't this cause problems when we are halfway through sending and our receiving future
+        // completes? If we really want this sending/receiving should be seperate tasks
 
         // read latest setpoint and forward to hardware
         let setpoint = state

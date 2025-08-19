@@ -1,0 +1,131 @@
+# Auto-generated using compose2nix v0.3.2-pre.
+{ pkgs, lib, ... }:
+
+{
+  # Runtime
+  virtualisation.docker = {
+    enable = true;
+    autoPrune.enable = true;
+  };
+  virtualisation.oci-containers.backend = "docker";
+
+  # Containers
+  virtualisation.oci-containers.containers."db" = {
+    image = "influxdb@sha256:c8a97fa106aef068619ed0f809be49b757060eae65830e230e9e0d2304f94182";
+    volumes = [
+      "/home/max/git/saxion/loop-sense/test.lp:/test.lp:rw"
+      "influxdb3containerandinitializationforhollandhybridheart_influxdb3_data:/var/lib/influxdb3:rw"
+    ];
+    ports = [
+      "8181:8181/tcp"
+    ];
+    cmd = [ "influxdb3" "serve" "--node-id=node0" "--object-store=file" "--data-dir=/var/lib/influxdb3" ];
+    dependsOn = [
+      "init-db-volume"
+    ];
+    log-driver = "journald";
+    extraOptions = [
+      "--health-cmd=[\"curl\", \"-sSf\", \"--header\", \"Authorization: Token \", \"http://localhost:8181/health\"]"
+      "--health-interval=30s"
+      "--health-retries=3"
+      "--health-start-period=30s"
+      "--health-timeout=10s"
+      "--network-alias=db"
+      "--network=influxdb3containerandinitializationforhollandhybridheart_default"
+    ];
+  };
+  systemd.services."docker-db" = {
+    serviceConfig = {
+      Restart = lib.mkOverride 90 "always";
+      RestartMaxDelaySec = lib.mkOverride 90 "1m";
+      RestartSec = lib.mkOverride 90 "100ms";
+      RestartSteps = lib.mkOverride 90 9;
+    };
+    after = [
+      "docker-network-influxdb3containerandinitializationforhollandhybridheart_default.service"
+      "docker-volume-influxdb3containerandinitializationforhollandhybridheart_influxdb3_data.service"
+    ];
+    requires = [
+      "docker-network-influxdb3containerandinitializationforhollandhybridheart_default.service"
+      "docker-volume-influxdb3containerandinitializationforhollandhybridheart_influxdb3_data.service"
+    ];
+    partOf = [
+      "docker-compose-influxdb3containerandinitializationforhollandhybridheart-root.target"
+    ];
+    wantedBy = [
+      "docker-compose-influxdb3containerandinitializationforhollandhybridheart-root.target"
+    ];
+  };
+  virtualisation.oci-containers.containers."init-db-volume" = {
+    image = "alpine@sha256:de0eb0b3f2a47ba1eb89389859a9bd88b28e82f5826b6969ad604979713c2d4f";
+    volumes = [
+      "/home/max/git/saxion/loop-sense/snapshot/influxdb3-data.tar.gz:/backup/influxdb3-data.tar.gz:ro"
+      "/home/max/git/saxion/loop-sense/snapshot/restore-volume.sh:/restore-volume.sh:ro"
+      "influxdb3containerandinitializationforhollandhybridheart_influxdb3_data:/data:rw"
+    ];
+    log-driver = "journald";
+    extraOptions = [
+      "--entrypoint=[\"/bin/sh\", \"/restore-volume.sh\"]"
+      "--network-alias=init-db-volume"
+      "--network=influxdb3containerandinitializationforhollandhybridheart_default"
+    ];
+  };
+  systemd.services."docker-init-db-volume" = {
+    serviceConfig = {
+      Restart = lib.mkOverride 90 "no";
+    };
+    after = [
+      "docker-network-influxdb3containerandinitializationforhollandhybridheart_default.service"
+      "docker-volume-influxdb3containerandinitializationforhollandhybridheart_influxdb3_data.service"
+    ];
+    requires = [
+      "docker-network-influxdb3containerandinitializationforhollandhybridheart_default.service"
+      "docker-volume-influxdb3containerandinitializationforhollandhybridheart_influxdb3_data.service"
+    ];
+    partOf = [
+      "docker-compose-influxdb3containerandinitializationforhollandhybridheart-root.target"
+    ];
+    wantedBy = [
+      "docker-compose-influxdb3containerandinitializationforhollandhybridheart-root.target"
+    ];
+  };
+
+  # Networks
+  systemd.services."docker-network-influxdb3containerandinitializationforhollandhybridheart_default" = {
+    path = [ pkgs.docker ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStop = "docker network rm -f influxdb3containerandinitializationforhollandhybridheart_default";
+    };
+    script = ''
+      docker network inspect influxdb3containerandinitializationforhollandhybridheart_default || docker network create influxdb3containerandinitializationforhollandhybridheart_default
+    '';
+    partOf = [ "docker-compose-influxdb3containerandinitializationforhollandhybridheart-root.target" ];
+    wantedBy = [ "docker-compose-influxdb3containerandinitializationforhollandhybridheart-root.target" ];
+  };
+
+  # Volumes
+  systemd.services."docker-volume-influxdb3containerandinitializationforhollandhybridheart_influxdb3_data" = {
+    path = [ pkgs.docker ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    script = ''
+      docker volume inspect influxdb3containerandinitializationforhollandhybridheart_influxdb3_data || docker volume create influxdb3containerandinitializationforhollandhybridheart_influxdb3_data
+    '';
+    partOf = [ "docker-compose-influxdb3containerandinitializationforhollandhybridheart-root.target" ];
+    wantedBy = [ "docker-compose-influxdb3containerandinitializationforhollandhybridheart-root.target" ];
+  };
+
+  # Root service
+  # When started, this will automatically create all resources and start
+  # the containers. When stopped, this will teardown all resources.
+  systemd.targets."docker-compose-influxdb3containerandinitializationforhollandhybridheart-root" = {
+    unitConfig = {
+      Description = "Root target generated by compose2nix.";
+    };
+    wantedBy = [ "multi-user.target" ];
+  };
+}
