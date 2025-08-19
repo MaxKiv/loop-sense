@@ -14,5 +14,6 @@
     neovim
     wget
     ripgrep
+    eza
   ];
 }

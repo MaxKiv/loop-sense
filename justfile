@@ -13,7 +13,17 @@ docker-run-db:
     docker compose up
 
 rpi-build:
-    nix build .#nixosConfigurations.aarch64-linux.rpi3.config.system.build.toplevel
+    nix build .#nixosConfigurations.aarch64-linux.rpi3.config.system.build.toplevel --print-out-paths
+
+rpi-copy:
+    nix copy [store-path-from-rpi-build] --to ssh://root@192.168.0.2
+
+rpi-ssh-switch:
+    ssh -v root@192.168.0.2
+    nixos-install --root / --system [store-path-from-rpi-build]
+
+rpi-switch:
+    nixos-rebuild switch --flake .#rpi3 --target-host root@192.168.0.2  --use-remote-sudo --build-host localhost --verbose --show-trace
 
 ### Debug commands ###
 
