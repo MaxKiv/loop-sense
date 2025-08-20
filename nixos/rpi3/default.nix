@@ -17,6 +17,7 @@
     ./ssh.nix
     ./virt.nix
     ./influxdb.nix
+    ./uart.nix
   ];
 
   nix.settings.experimental-features = ["nix-command" "flakes"];
@@ -25,8 +26,6 @@
   nix.settings.trusted-users = ["@wheel"];
 
   hardware.enableRedistributableFirmware = true;
-
-  # nixpkgs.hostPlatform = "aarch64-linux";
 
   boot.initrd.availableKernelModules = ["usbhid"];
 

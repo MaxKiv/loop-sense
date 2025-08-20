@@ -117,7 +117,7 @@
             ];
           };
         };
-
+      }) // {
         # NixOS configuration for rpi3
         nixosConfigurations.rpi3 = nixpkgs.lib.nixosSystem {
           system = "aarch64-linux";
@@ -134,5 +134,5 @@
             ./nixos/rpi3
           ];
         };
-      });
+    };
 }

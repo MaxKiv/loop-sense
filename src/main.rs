@@ -11,7 +11,7 @@ use db_communication_task::communicate_with_db;
 use influxdb::Client;
 use loop_sense::{
     appstate::AppState,
-    communicator::passthrough::PassThroughCommunicator,
+    communicator::{passthrough::PassThroughCommunicator, uart::UartCommunicator},
     controller::{backend::mockloop_hardware::SensorData, mockloop_controller::ControllerSetpoint},
     http::{get_data, post_setpoint},
 };
@@ -50,7 +50,9 @@ async fn main() {
 
     // Delegate all microcontroller communication to a separate tokio task
     let (db_sender, db_receiver) = tokio::sync::mpsc::channel(100);
-    let (communicator, receiver) = PassThroughCommunicator::new_with_receiver();
+    // let (communicator, receiver) = PassThroughCommunicator::new_with_receiver();
+    let communicator = UartCommunicator::new();
+
     let handle = task::spawn(communicate_with_micro(
         communicator,
         state.clone(),
