@@ -3,9 +3,7 @@ use std::time::Duration;
 use tokio::time::sleep;
 use tracing::info;
 
-use crate::controller::{
-    backend::mockloop_hardware::SensorData, mockloop_controller::ControllerSetpoint,
-};
+use crate::controller::{backend::mockloop_hardware::SensorData, mockloop_controller::Setpoint};
 
 use super::mockloop_communicator::MockloopCommunicator;
 
@@ -20,7 +18,7 @@ impl MockloopCommunicator for SimulatedCommunicator {
         out
     }
 
-    async fn send_setpoint(&mut self, setpoint: ControllerSetpoint) {
+    async fn send_setpoint(&mut self, setpoint: Setpoint) {
         sleep(Duration::from_millis(10)).await;
         info!("Simulated communicator received setpoint: {:?}", setpoint);
     }

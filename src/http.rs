@@ -3,7 +3,7 @@ use tracing::{error, info, warn};
 
 use crate::{
     appstate::AppState,
-    controller::{backend::mockloop_hardware::SensorData, mockloop_controller::ControllerSetpoint},
+    controller::{backend::mockloop_hardware::SensorData, mockloop_controller::Setpoint},
 };
 
 /// Allow GET requests to fetch latest sensor data over http
@@ -21,7 +21,7 @@ pub async fn get_data(state: axum::extract::State<AppState>) -> Json<SensorData>
 #[axum::debug_handler]
 pub async fn post_setpoint(
     state: axum::extract::State<AppState>,
-    Json(payload): Json<ControllerSetpoint>,
+    Json(payload): Json<Setpoint>,
 ) -> &'static str {
     let test = Json(payload.clone());
     let serialized = serde_json::to_string(&test.0).unwrap();

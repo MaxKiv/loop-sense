@@ -31,7 +31,7 @@
       toolchain = with fenix.packages.${system};
         fromToolchainFile {
           file = ./rust-toolchain.toml;
-          sha256 = "sha256-iia8FkmVjcS5deG61FHlPDH/8Mh35VCsThCCgqRSJ2A=";
+          sha256 = "sha256-+9FmLhAOezBZCOziO0Qct1NOrfpjNsXxc/8I0c7BdKE=";
         };
       craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
     in
@@ -91,7 +91,7 @@
         toolchain = with fenix.packages.${system};
           fromToolchainFile {
             file = ./rust-toolchain.toml;
-            sha256 = "sha256-iia8FkmVjcS5deG61FHlPDH/8Mh35VCsThCCgqRSJ2A=";
+            sha256 = "sha256-+9FmLhAOezBZCOziO0Qct1NOrfpjNsXxc/8I0c7BdKE=";
           };
       in {
         packages = {
@@ -117,22 +117,23 @@
             ];
           };
         };
-      }) // {
-        # NixOS configuration for rpi3
-        nixosConfigurations.rpi3 = nixpkgs.lib.nixosSystem {
-          system = "aarch64-linux";
-          specialArgs = {
-            hostname = "rpi3";
-            username = "max";
-            sshPublicKeys = import ./nixos/resources/ssh_public_keys.nix;
-            composePath = ./compose.yaml;
-            snapshotPath = ./snapshot;
-            resourcePath = ./nixos/resources;
-            inherit inputs;
-          };
-          modules = [
-            ./nixos/rpi3
-          ];
+      })
+    // {
+      # NixOS configuration for rpi3
+      nixosConfigurations.rpi3 = nixpkgs.lib.nixosSystem {
+        system = "aarch64-linux";
+        specialArgs = {
+          hostname = "rpi3";
+          username = "max";
+          sshPublicKeys = import ./nixos/resources/ssh_public_keys.nix;
+          composePath = ./compose.yaml;
+          snapshotPath = ./snapshot;
+          resourcePath = ./nixos/resources;
+          inherit inputs;
         };
+        modules = [
+          ./nixos/rpi3
+        ];
+      };
     };
 }
