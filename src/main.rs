@@ -8,11 +8,10 @@ use axum::{
 };
 use control_loop_task::high_lvl_control_loop;
 use db_communication_task::communicate_with_db;
-use influxdb::Client;
 use loop_sense::{
     appstate::AppState,
     communicator::{passthrough::PassThroughCommunicator, uart::UartCommunicator},
-    controller::{backend::mockloop_hardware::SensorData, mockloop_controller::ControllerSetpoint},
+    controller::{backend::mockloop_hardware::SensorData, mockloop_controller::Setpoint},
     http::{get_data, post_setpoint},
 };
 use loop_sense::{
@@ -21,7 +20,8 @@ use loop_sense::{
 };
 use micro_communication_task::communicate_with_micro;
 use std::sync::{Arc, Mutex};
-use tokio::task;
+use tokio::time::Duration;
+use tokio::{task, time};
 use tracing::{Level, error, info};
 use tracing_subscriber::FmtSubscriber;
 
@@ -38,7 +38,7 @@ async fn main() {
         .expect("setting default tracing subscriber failed");
 
     // Initialize application state
-    let initial_setpoint = ControllerSetpoint::default();
+    let initial_setpoint = Setpoint::default();
     let initial_data = SensorData::default();
     let state = AppState {
         controller_setpoint: Arc::new(Mutex::new(initial_setpoint)),
@@ -50,9 +50,23 @@ async fn main() {
 
     // Delegate all microcontroller communication to a separate tokio task
     let (db_sender, db_receiver) = tokio::sync::mpsc::channel(100);
-    // let (communicator, receiver) = PassThroughCommunicator::new_with_receiver();
-    let communicator = UartCommunicator::new();
 
+    #[cfg(not(feature = "stm32g4"))]
+    let (communicator, receiver) = PassThroughCommunicator::new_with_receiver();
+
+    // Spin until uart connection is established
+    #[cfg(feature = "stm32g4")]
+    let communicator = loop {
+        match UartCommunicator::try_new() {
+            Ok(c) => break c,
+            Err(err) => {
+                error!("Unable to open uart communicator, spinning...");
+                time::sleep(Duration::from_millis(500)).await;
+            }
+        }
+    };
+
+    // Spawn
     let handle = task::spawn(communicate_with_micro(
         communicator,
         state.clone(),
@@ -61,7 +75,11 @@ async fn main() {
     handles.push(handle);
 
     // Start the high level control loop in a separate task
+    #[cfg(not(feature = "stm32g4"))]
     let handle = task::spawn(high_lvl_control_loop(receiver));
+    #[cfg(feature = "nidaq")]
+    let handle = task::spawn(high_lvl_control_loop());
+
     handles.push(handle);
 
     // Start the DB communication task

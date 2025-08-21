@@ -21,6 +21,7 @@ tracing-subscriber = "0.3.19"
 uom = { version = "0.37.0", features = ["serde"] }
 love-letter = { path = "../love-letter" }
 # love-letter = { git = "ssh://git@bitbucket.org/mechatronica/love_letter.git" }
+tokio-serial = "5.4.5"
 
 [dev-dependencies]
 axum = "0.8.4"
@@ -30,6 +31,7 @@ tokio = { version = "1.45.1", features = ["full"] }
 tower = "0.5.2"
 
 [features]
-default = ["sim"]
+default = ["stm32g4"]
 sim = []
+stm32g4 = []
 nidaq = []

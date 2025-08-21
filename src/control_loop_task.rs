@@ -1,5 +1,5 @@
 use anyhow::Result;
-use loop_sense::controller::mockloop_controller::{ControllerSetpoint, MockloopController};
+use loop_sense::controller::mockloop_controller::{MockloopController, Setpoint};
 use tokio::sync::watch::Receiver;
 use tracing::info;
 
@@ -16,7 +16,7 @@ use loop_sense::controller::backend::nidaq::{
 #[cfg(feature = "nidaq")]
 use loop_sense::nidaq::nidaq_sys::Nidaq;
 
-pub async fn high_lvl_control_loop(setpoint_receiver: Receiver<ControllerSetpoint>) {
+pub async fn high_lvl_control_loop(setpoint_receiver: Receiver<Setpoint>) {
     #[cfg(feature = "sim")]
     let controller = initialize_simulated_controller(setpoint_receiver)
         .expect("should be able to initialize simulated controller");
@@ -25,20 +25,31 @@ pub async fn high_lvl_control_loop(setpoint_receiver: Receiver<ControllerSetpoin
     let controller = initialize_nidaq_controller(setpoint_receiver)
         .expect("should be able to initialize nidaq controller");
 
+    #[cfg(feature = "stm32g4")]
+    let controller = initialize_stm32g4_controller(setpoint_receiver)
+        .expect("should be able to initialize nidaq controller");
+
     info!("Running controller");
     controller.run().await;
 }
 
 #[cfg(feature = "sim")]
 fn initialize_simulated_controller(
-    setpoint_receiver: Receiver<ControllerSetpoint>,
+    setpoint_receiver: Receiver<Setpoint>,
+) -> Result<MockloopController<Sim>> {
+    Ok(MockloopController::new(Sim {}, setpoint_receiver))
+}
+
+#[cfg(feature = "stm32g4")]
+fn initialize_stm32g4_controller(
+    setpoint_receiver: Receiver<Setpoint>,
 ) -> Result<MockloopController<Sim>> {
     Ok(MockloopController::new(Sim {}, setpoint_receiver))
 }
 
 #[cfg(feature = "nidaq")]
 fn initialize_nidaq_controller(
-    setpoint_receiver: Receiver<ControllerSetpoint>,
+    setpoint_receiver: Receiver<Setpoint>,
 ) -> Result<MockloopController<Nidaq>> {
     Ok(MockloopController::new(
         initialize_nidaq().expect("error initializing nidaq"),

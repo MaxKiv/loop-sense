@@ -22,9 +22,9 @@
   # hardware.deviceTree.overlays = [
   #   { name = "pi3-disable-bt"; }
   # ];
-  
- # Enable serial console (UART0)
-  boot.kernelParams = [ "console=ttyAMA0,115200n8" ];
+
+  # Enable serial console (UART0) TTY
+  # boot.kernelParams = [ "console=ttyAMA0,115200n8" ];
 
   # Additional system packages
   environment.systemPackages = with pkgs; [

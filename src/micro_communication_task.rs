@@ -18,7 +18,7 @@ pub async fn communicate_with_micro<C: MockloopCommunicator>(
         // Doesn't this cause problems when we are halfway through sending and our receiving future
         // completes? If we really want this sending/receiving should be seperate tasks
 
-        // read latest setpoint and forward to hardware
+        // Read latest setpoint and forward to hardware
         let setpoint = state
             .controller_setpoint
             .lock()
@@ -26,7 +26,7 @@ pub async fn communicate_with_micro<C: MockloopCommunicator>(
             .clone();
         communicator.send_setpoint(setpoint).await;
 
-        // receive from hardware and forward to controller
+        // Receive measurements from hardware and forward to controller
         let data = communicator.receive_data().await;
         if let Ok(mut sensor_data) = state.sensor_data.lock() {
             *sensor_data = data.clone()
