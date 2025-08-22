@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Datelike, Local, TimeZone, Utc};
 use influxdb::{Client, InfluxDbWriteable as _, WriteQuery};
-use loop_sense::controller::backend::mockloop_hardware::SensorData;
 use loop_sense::database::query::GET_LATEST_MEASUREMENT_ID;
 use loop_sense::database::record::SensorDataRecord;
 use loop_sense::database::secrets::{DB_ACCESS_TOKEN, DB_NAME, DB_URI, MEASUREMENT_ID_TABLE};
+use loop_sense::messages::db_messages::{DatabaseRecord, DatabaseReport};
 use serde_json::Value;
 use tokio::sync::mpsc::Receiver;
 use tokio::time::{self, Duration, Instant};
@@ -34,9 +34,9 @@ type MeasurementID = usize;
 type TableName = String;
 
 /// Log recorded sensor data and logs to the database
-pub async fn communicate_with_db(mut db_receiver: Receiver<SensorData>) {
+pub async fn communicate_with_db(mut db_report_receiver: Receiver<DatabaseReport>) {
     // Loop timekeeping
-    let mut next_tick_time = Instant::now() + DB_LOOP_PERIOD;
+    let mut ticker = time::interval(DB_LOOP_PERIOD);
 
     // Initialize DB connection
     let db_client = Arc::new(Client::new(DB_URI, DB_NAME).with_token(DB_ACCESS_TOKEN));
@@ -48,10 +48,10 @@ pub async fn communicate_with_db(mut db_receiver: Receiver<SensorData>) {
 
     // Main routine
     loop {
-        // Receive data from the microcontroller communication task
-        if let Some(sensor_data) = db_receiver.recv().await {
+        // Receive report from the controller task task
+        if let Some(report) = db_report_receiver.recv().await {
             // Batch received measurements
-            batched_data.push(SensorDataRecord::from(sensor_data));
+            batched_data.push(DatabaseRecord::from(report));
             debug!("batched_query {:?}", batched_data);
         } else {
             error!("DB write error: unable to receive sensor date - Receiver is closed");
@@ -81,8 +81,7 @@ pub async fn communicate_with_db(mut db_receiver: Receiver<SensorData>) {
         }
 
         // Loop timekeeping
-        next_tick_time += DB_LOOP_PERIOD;
-        time::sleep_until(next_tick_time).await;
+        ticker.tick().await;
     }
 }
 
