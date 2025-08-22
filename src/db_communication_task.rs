@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Datelike, Local, TimeZone, Utc};
 use influxdb::{Client, InfluxDbWriteable as _, WriteQuery};
-use loop_sense::database::query::GET_LATEST_MEASUREMENT_ID;
-use loop_sense::database::record::SensorDataRecord;
-use loop_sense::database::secrets::{DB_ACCESS_TOKEN, DB_NAME, DB_URI, MEASUREMENT_ID_TABLE};
-use loop_sense::messages::db_messages::{DatabaseRecord, DatabaseReport};
 use serde_json::Value;
 use tokio::sync::mpsc::Receiver;
 use tokio::time::{self, Duration, Instant};
 use tracing::{debug, error, info, warn};
+
+use crate::database::query::GET_LATEST_MEASUREMENT_ID;
+use crate::database::secrets::*;
+use crate::messages::db_messages::{DatabaseRecord, DatabaseReport};
 
 const DB_LOOP_PERIOD: Duration = Duration::from_millis(100);
 const QUERY_BATCH_LEN: usize = 100;

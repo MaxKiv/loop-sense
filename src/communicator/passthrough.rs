@@ -1,18 +1,17 @@
+use love_letter::{Report, Setpoint};
 use tokio::sync::watch::{self, Receiver, Sender};
 
-use crate::controller::{backend::mockloop_hardware::SensorData, mockloop_controller::Setpoint};
-
-use super::mockloop_communicator::MockloopCommunicator;
+use crate::communicator::MockloopCommunicator;
 
 pub struct PassThroughCommunicator {
-    sender: Sender<Setpoint>,
+    sender: Sender<love_letter::Setpoint>,
 }
 
 #[async_trait::async_trait]
 impl MockloopCommunicator for PassThroughCommunicator {
-    async fn receive_data(&mut self) -> SensorData {
+    async fn receive_report(&mut self) -> love_letter::Report {
         // info!("Simulated communicator received data: {:?}", out);
-        SensorData::simulate()
+        simulate_report()
     }
 
     async fn send_setpoint(&mut self, setpoint: Setpoint) {
@@ -34,5 +33,12 @@ impl PassThroughCommunicator {
             },
             rx_setpoint,
         )
+    }
+}
+
+pub fn simulate_report() -> Report {
+    Report {
+        app_state: (),
+        measurements: (),
     }
 }

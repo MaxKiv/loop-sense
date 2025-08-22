@@ -1,11 +1,11 @@
+use love_letter::{Report, Setpoint};
 use tokio::io::AsyncWriteExt;
 use tokio_serial::{DataBits, FlowControl, Parity, SerialPortBuilderExt, SerialStream, StopBits};
 use tracing::*;
 
-use crate::controller::{backend::mockloop_hardware::SensorData, mockloop_controller::Setpoint};
 use anyhow::Result;
 
-use super::mockloop_communicator::MockloopCommunicator;
+use crate::communicator::MockloopCommunicator;
 
 const BAUD_RATE: u32 = 115200;
 
@@ -50,7 +50,7 @@ impl UartCommunicator {
 
 #[async_trait::async_trait]
 impl MockloopCommunicator for UartCommunicator {
-    async fn receive_data(&mut self) -> SensorData {
+    async fn receive_report(&mut self) -> Report {
         // Receive data over uart
         let mut buf = [0u8; 32];
         loop {
@@ -61,7 +61,7 @@ impl MockloopCommunicator for UartCommunicator {
                     match love_letter::deserialize_report(&mut buf) {
                         Ok(_report) => {
                             // parse received data into SensorData
-                            let out = SensorData::simulate();
+                            let out = todo!();
                             return out;
                         }
                         Err(err) => {
@@ -79,11 +79,10 @@ impl MockloopCommunicator for UartCommunicator {
     async fn send_setpoint(&mut self, setpoint: Setpoint) {
         // Send setpoint over uart
         let mut buf = [0u8; 32];
+        info!("UART sending setpoint: {:?}", setpoint);
 
         love_letter::serialize_setpoint(setpoint, &mut buf);
 
         self.uart.write(&buf).await;
-
-        info!("Simulated communicator received setpoint: {:?}", setpoint);
     }
 }

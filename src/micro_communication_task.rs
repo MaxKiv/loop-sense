@@ -1,10 +1,12 @@
-use loop_sense::appstate::AxumState;
-use loop_sense::communicator::mockloop_communicator::MockloopCommunicator;
-use loop_sense::controller::backend::mockloop_hardware::SensorData;
+use chrono::Duration;
 use love_letter::{Report, Setpoint};
-use tokio::sync::mpsc::{Receiver, Sender};
-use tokio::time::{self, Duration, Instant, timeout};
-use tracing::{error, info, warn};
+use tokio::{
+    sync::mpsc::{Receiver, Sender},
+    time::{self, timeout},
+};
+use tracing::*;
+
+use crate::communicator::MockloopCommunicator;
 
 /// Defines the frequency at which mcu communication takes place
 const COMMS_LOOP_PERIOD: Duration = Duration::from_millis(10);
@@ -38,7 +40,7 @@ pub async fn communicate_with_micro<C: MockloopCommunicator>(
         }
 
         // Receive latest report from mcu and forward to controller task
-        match timeout(COMMS_TIMEOUT, communicator.receive_data()).await {
+        match timeout(COMMS_TIMEOUT, communicator.receive_report()).await {
             Ok(report) => {
                 if let Err(err) = timeout(COMMS_TIMEOUT, report_sender.send(report)).await {
                     error!("timeout sending report to controller task: {err}");
