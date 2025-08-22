@@ -1,5 +1,5 @@
-use chrono::Duration;
 use love_letter::{Report, Setpoint};
+use tokio::time::Duration;
 use tokio::{
     sync::mpsc::{Receiver, Sender},
     time::{self, timeout},
@@ -15,7 +15,7 @@ const COMMS_TIMEOUT: Duration = Duration::from_millis(5);
 
 pub async fn communicate_with_micro<C: MockloopCommunicator>(
     mut communicator: C,
-    setpoint_receiver: Receiver<Setpoint>,
+    mut setpoint_receiver: Receiver<Setpoint>,
     report_sender: Sender<Report>,
 ) {
     let mut ticker = time::interval(COMMS_LOOP_PERIOD);
@@ -28,7 +28,7 @@ pub async fn communicate_with_micro<C: MockloopCommunicator>(
 
         // Receive latest mcu setpoint from the controller task and send to the mcu
         match timeout(COMMS_TIMEOUT, setpoint_receiver.recv()).await {
-            Ok(setpoint) => {
+            Ok(Some(setpoint)) => {
                 if let Err(err) = timeout(COMMS_TIMEOUT, communicator.send_setpoint(setpoint)).await
                 {
                     error!("timeout sending setpoint to mcu: {err}");
@@ -37,6 +37,7 @@ pub async fn communicate_with_micro<C: MockloopCommunicator>(
             Err(err) => {
                 error!("timeout receiving setpoint from controller task: {err}");
             }
+            _ => {}
         }
 
         // Receive latest report from mcu and forward to controller task

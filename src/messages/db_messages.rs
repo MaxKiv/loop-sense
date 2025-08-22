@@ -1,8 +1,14 @@
+use chrono::{DateTime, Utc};
+use influxdb::InfluxDbWriteable;
 use love_letter::Measurements;
 use uom::si::{frequency::hertz, pressure::bar, volume_rate::liter_per_minute};
 
-use crate::messages::frontend_messages::{HeartControllerSetpoint, MockloopSetpoint};
+use crate::{
+    experiment::Experiment,
+    messages::frontend_messages::{HeartControllerSetpoint, MockloopSetpoint},
+};
 
+#[derive(Debug, Clone, InfluxDbWriteable)]
 pub struct DatabaseRecord {
     right_preload_pressure_mmhg: f32,
     left_preload_pressure_mmhg: f32,
@@ -18,10 +24,10 @@ pub struct DatabaseRecord {
     left_afterload_compliance: f32,
     right_afterload_compliance: f32,
     simulation_time: f32,
-    time: f32,
-    experiment_id: f32,          // TODO: make this tag
-    experiment_name: f32,        // TODO: make this tag
-    experiment_description: f32, // TODO: make this tag
+    time: DateTime<Utc>,
+    experiment_id: String,
+    experiment_name: String,
+    experiment_description: String,
 }
 
 pub struct DatabaseReport {
@@ -29,11 +35,15 @@ pub struct DatabaseReport {
     pub heart_controller_setpoint: HeartControllerSetpoint,
     pub measurements: Measurements,
     pub experiment: Experiment,
-    pub time: u64,
+    pub time: DateTime<Utc>,
 }
 
 impl From<DatabaseReport> for DatabaseRecord {
     fn from(r: DatabaseReport) -> Self {
+        // Parse uuid into hyphenated string
+        let mut buf = [b'0'; 40];
+        let uuid = r.experiment.id.as_hyphenated().encode_lower(&mut buf);
+
         Self {
             right_preload_pressure_mmhg: r.measurements.pulmonary_preload_pressure.get::<bar>(),
             left_preload_pressure_mmhg: r.measurements.systemic_preload_pressure.get::<bar>(),
@@ -46,12 +56,12 @@ impl From<DatabaseReport> for DatabaseRecord {
             systole_ratio: r.heart_controller_setpoint.systole_ratio,
             systemic_resistance: r.mockloop_setpoint.systemic_resistance,
             pulmonary_resistance: r.mockloop_setpoint.pulmonary_resistance,
-            left_afterload_compliance: r.mockloop_setpoint.left_afterload_compliance,
-            right_afterload_compliance: r.mockloop_setpoint.right_afterload_compliance,
-            simulation_time: 0,
-            time: r.measurements.timestamp,
-            experiment_id: r.experiment.experiment_id,
-            experiment_name: r.experiment.experiment_name,
+            left_afterload_compliance: r.mockloop_setpoint.systemic_afterload_compliance,
+            right_afterload_compliance: r.mockloop_setpoint.pulmonary_afterload_compliance,
+            simulation_time: 0.0,
+            time: r.time,
+            experiment_id: String::from(uuid),
+            experiment_name: r.experiment.name,
             experiment_description: r.experiment.description,
         }
     }

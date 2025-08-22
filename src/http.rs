@@ -1,7 +1,11 @@
 use axum::Json;
+use hyper::StatusCode;
 use tracing::{error, info, warn};
 
-use crate::axumstate::AxumState;
+use crate::{
+    axumstate::AxumState,
+    experiment::{self},
+};
 
 /// Allow GET requests to fetch latest sensor data over http
 pub async fn get_data(state: axum::extract::State<AxumState>) -> Json<SensorData> {
@@ -33,5 +37,36 @@ pub async fn post_setpoint(
     } else {
         warn!("DISABLE control");
     }
+    "OK"
+}
+
+#[axum::debug_handler]
+pub async fn get_experiment_status(
+    state: axum::extract::State<AxumState>,
+) -> Result<&'static str, StatusCode> {
+    if let Ok(status) = state.0.experiment_status.lock() {
+        Json(status.clone());
+        Ok("OK")
+    } else {
+        error!("Unable to fetch the current experiment status");
+        Err(StatusCode::INTERNAL_SERVER_ERROR)
+    }
+}
+
+#[axum::debug_handler]
+pub async fn start_experiment(
+    state: axum::extract::State<AxumState>,
+    Json(start_message): Json<experiment::ExperimentStartMessage>,
+) -> &'static str {
+    state.experiment_watch.send(Some(start_message.clone()));
+    "OK"
+}
+
+#[axum::debug_handler]
+pub async fn stop_experiment(
+    state: axum::extract::State<AxumState>,
+    Json(start_message): Json<experiment::ExperimentStartMessage>,
+) -> &'static str {
+    state.experiment_watch.send(Some(start_message.clone()));
     "OK"
 }

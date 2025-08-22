@@ -2,7 +2,10 @@ use crate::axumstate::AxumState;
 use crate::db_communication_task::communicate_with_db;
 use crate::experiment::manage::manage_experiments;
 use crate::http::get_data;
+use crate::http::get_experiment_status;
 use crate::http::post_setpoint;
+use crate::http::start_experiment;
+use crate::http::stop_experiment;
 use crate::micro_communication_task::communicate_with_micro;
 use axum::Router;
 use axum::routing::get;
@@ -36,6 +39,14 @@ async fn main() {
     tracing::subscriber::set_global_default(subscriber)
         .expect("setting default tracing subscriber failed");
 
+    // Create communication channels between tasks
+    let (db_report_sender, db_report_receiver) = tokio::sync::mpsc::channel(100);
+    let (mcu_setpoint_sender, mcu_setpoint_receiver) = tokio::sync::mpsc::channel(100);
+    let (mcu_report_sender, mcu_report_receiver) = tokio::sync::mpsc::channel(100);
+    let (experiment_sender, experiment_receiver) = tokio::sync::watch::channel(None);
+    let (experiment_started_sender, experiment_started_receiver) =
+        tokio::sync::watch::channel(None);
+
     // Initialize application state
     let initial_setpoint = None;
     let initial_report = None;
@@ -44,6 +55,7 @@ async fn main() {
         setpoint: Arc::new(Mutex::new(initial_setpoint)),
         report: Arc::new(Mutex::new(initial_report)),
         experiment: Arc::new(Mutex::new(initial_experiment)),
+        experiment_watch: experiment_started_sender,
     };
 
     #[cfg(feature = "sim-mcu")]
@@ -61,12 +73,6 @@ async fn main() {
             }
         }
     };
-
-    // Create communication channels between tasks
-    let (db_report_sender, db_report_receiver) = tokio::sync::mpsc::channel(100);
-    let (mcu_setpoint_sender, mcu_setpoint_receiver) = tokio::sync::mpsc::channel(100);
-    let (mcu_report_sender, mcu_report_receiver) = tokio::sync::mpsc::channel(100);
-    let (experiment_sender, experiment_receiver) = tokio::sync::mpsc::channel(100);
 
     // Delegate all microcontroller communication to a separate tokio task
     let handle = task::spawn(communicate_with_micro(
@@ -88,17 +94,23 @@ async fn main() {
     ));
 
     // Start the experiment manager task
-    let handle = task::spawn(manage_experiments(experiment_sender));
+    let handle = task::spawn(manage_experiments(
+        experiment_started_receiver,
+        experiment_sender,
+    ));
 
     // Start the DB communication task
     let handle = task::spawn(communicate_with_db(db_report_receiver));
 
     // Set up Axum routers
     let app = Router::new()
-        // GET endpoint router to access new sensor data over http
+        // GET endpoints
         .route("/data", get(get_data))
-        // POST endpoint router to update control setpoints over http
+        .route("/experiment/status", get(get_experiment_status))
+        // POST endpoints
         .route("/setpoint", post(post_setpoint))
+        .route("/experiment/start", post(start_experiment))
+        .route("/experiment/stop", post(stop_experiment))
         // Give the routers access to the application state
         .with_state(state.clone());
 
