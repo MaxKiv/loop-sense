@@ -1,46 +1,54 @@
-use loop_sense::appstate::AppState;
+use loop_sense::appstate::AxumState;
 use loop_sense::communicator::mockloop_communicator::MockloopCommunicator;
 use loop_sense::controller::backend::mockloop_hardware::SensorData;
 use love_letter::{Report, Setpoint};
-use tokio::sync::mpsc::Sender;
-use tokio::time::{self, Duration, Instant};
+use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::time::{self, Duration, Instant, timeout};
 use tracing::{error, info, warn};
 
-const COMMS_LOOP_PERIOD: Duration = Duration::from_millis(100);
+/// Defines the frequency at which mcu communication takes place
+const COMMS_LOOP_PERIOD: Duration = Duration::from_millis(10);
+/// Bounds the maximum duration between consecutive setpoints / reports
+const COMMS_TIMEOUT: Duration = Duration::from_millis(5);
 
 pub async fn communicate_with_micro<C: MockloopCommunicator>(
     mut communicator: C,
     setpoint_receiver: Receiver<Setpoint>,
     report_sender: Sender<Report>,
 ) {
-    let mut next_tick_time = Instant::now() + COMMS_LOOP_PERIOD;
+    let mut ticker = time::interval(COMMS_LOOP_PERIOD);
+
     loop {
         // Note: Don't use tokio select instead of awaiting communicator sequentially
         // This cause problems when we are halfway through sending and our receiving future
         // completes, causing our sending future to drop.
         // If we really want this sending/receiving should be in seperate tasks
 
-        // Read latest setpoint and forward to hardware
-        let setpoint = state
-            .setpoint
-            .lock()
-            .expect("Unable to lock controller_setpoint mutex in communicate_with_micro")
-            .clone();
-        communicator.send_setpoint(setpoint).await;
-
-        // Receive measurements from hardware and forward to controller
-        let data = communicator.receive_data().await;
-        if let Ok(mut sensor_data) = state.report.lock() {
-            *sensor_data = data.clone()
+        // Receive latest mcu setpoint from the controller task and send to the mcu
+        match timeout(COMMS_TIMEOUT, setpoint_receiver.recv()).await {
+            Ok(setpoint) => {
+                if let Err(err) = timeout(COMMS_TIMEOUT, communicator.send_setpoint(setpoint)).await
+                {
+                    error!("timeout sending setpoint to mcu: {err}");
+                }
+            }
+            Err(err) => {
+                error!("timeout receiving setpoint from controller task: {err}");
+            }
         }
 
-        // Send sensor data received from the microcontroller to the database task to be logged
-        info!("micro comms sending: {:?}", data.clone());
-        if let Err(err) = db_sender.send(data).await {
-            error!("micro comms send error: {:?}", err);
+        // Receive latest report from mcu and forward to controller task
+        match timeout(COMMS_TIMEOUT, communicator.receive_data()).await {
+            Ok(report) => {
+                if let Err(err) = timeout(COMMS_TIMEOUT, report_sender.send(report)).await {
+                    error!("timeout sending report to controller task: {err}");
+                }
+            }
+            Err(err) => {
+                error!("timeout receiving report from mcu: {err}");
+            }
         }
 
-        next_tick_time += COMMS_LOOP_PERIOD;
-        time::sleep_until(next_tick_time).await;
+        ticker.tick().await;
     }
 }
