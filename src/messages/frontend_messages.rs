@@ -5,16 +5,27 @@ use uom::si::{
     pressure::bar,
 };
 
-// pub struct ExperimentStatus {
-//   "experiment": {
-//     "is_running": false,
-//     "experiment_id": null,
-//     "experiment_name": null,
-//     "table_name": null,
-//     "duration_seconds": 0
-// }
+pub struct Report {
+    right_preload_pressure_mmhg: f32,
+    left_preload_pressure_mmhg: f32,
+    right_afterload_pressure_mmhg: f32,
+    left_afterload_pressure_mmhg: f32,
+    systemic_flow_l_per_min: f32,
+    pulmonary_flow_l_per_min: f32,
+    heart_rate: f32,
+    pressure: f32,
+    systole_ratio: f32,
+    systemic_resistance: f32,
+    pulmonary_resistance: f32,
+    left_afterload_compliance: f32,
+    right_afterload_compliance: f32,
+    simulation_time: f32,
+    time: f32,
+    experiment_id: f32,          // TODO: make this tag
+    experiment_name: f32,        // TODO: make this tag
+    experiment_description: f32, // TODO: make this tag
+}
 
-/// Setpoint
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Setpoint {
     // pub current_time: DateTimeWrapper,

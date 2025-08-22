@@ -1,10 +1,7 @@
 use love_letter::Measurements;
 use uom::si::{frequency::hertz, pressure::bar, volume_rate::liter_per_minute};
 
-use crate::{
-    experiment::Experiment,
-    messages::frontend_messages::{HeartControllerSetpoint, MockloopSetpoint},
-};
+use crate::messages::frontend_messages::{HeartControllerSetpoint, MockloopSetpoint};
 
 pub struct DatabaseRecord {
     right_preload_pressure_mmhg: f32,

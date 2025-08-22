@@ -1,11 +1,10 @@
-pub mod mockloop_communicator;
+use love_letter::{Report, Setpoint};
+
 pub mod passthrough;
-pub mod sim;
 pub mod uart;
-use crate::controller::{backend::mockloop_hardware::SensorData, mockloop_controller::Setpoint};
 
 #[async_trait::async_trait]
 pub trait MockloopCommunicator: Send + Sync {
-    async fn receive_data(&mut self) -> SensorData;
+    async fn receive_report(&mut self) -> Report;
     async fn send_setpoint(&mut self, setpoint: Setpoint);
 }

@@ -1,13 +1,10 @@
 use axum::Json;
 use tracing::{error, info, warn};
 
-use crate::{
-    appstate::AppState,
-    controller::{backend::mockloop_hardware::SensorData, mockloop_controller::Setpoint},
-};
+use crate::axumstate::AxumState;
 
 /// Allow GET requests to fetch latest sensor data over http
-pub async fn get_data(state: axum::extract::State<AppState>) -> Json<SensorData> {
+pub async fn get_data(state: axum::extract::State<AxumState>) -> Json<SensorData> {
     if let Ok(sensor_data) = state.sensor_data.lock() {
         Json(sensor_data.clone())
     } else {
@@ -20,7 +17,7 @@ pub async fn get_data(state: axum::extract::State<AppState>) -> Json<SensorData>
 /// Allow POST requests to update the mockloop controller setpoints over http
 #[axum::debug_handler]
 pub async fn post_setpoint(
-    state: axum::extract::State<AppState>,
+    state: axum::extract::State<AxumState>,
     Json(payload): Json<Setpoint>,
 ) -> &'static str {
     let test = Json(payload.clone());
