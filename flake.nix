@@ -96,9 +96,6 @@
       in {
         packages = {
           default = buildForTarget system "x86_64-unknown-linux-gnu" "sim";
-          nidaq = buildForTarget system "x86_64-unknown-linux-gnu" "nidaq";
-          windows-gnu = buildForTarget system "x86_64-pc-windows-gnu" "nidaq";
-          windows-msvc = buildForTarget system "x86_64-pc-windows-msvc" "nidaq";
         };
 
         devShells = {
