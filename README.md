@@ -61,5 +61,7 @@ to C/C++ Defines. Loop-sense can be build with following features:
 
 # TODO
 
-- str& instead of String everywhere
-- tidy up public/private access
+- [ ] Remove nidaq cruft
+- [ ] implement hydraulic resistance/compliance uom quantities
+- [ ] str& instead of String everywhere
+- [ ] tidy up public/private access
