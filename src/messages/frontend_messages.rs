@@ -5,6 +5,7 @@ use uom::si::{
     pressure::bar,
 };
 
+#[derive(Debug, Clone, Copy)]
 pub struct Report {
     right_preload_pressure_mmhg: f32,
     left_preload_pressure_mmhg: f32,
@@ -32,7 +33,17 @@ pub struct Setpoint {
     /// Should the mockloop controller be enabled?
     pub enable: bool,
     pub mockloop_setpoint: MockloopSetpoint,
-    pub pneumatic_controller_setpoint: HeartControllerSetpoint,
+    pub heart_controller_setpoint: HeartControllerSetpoint,
+}
+
+impl Into<love_letter::Setpoint> for Setpoint {
+    fn into(self) -> love_letter::Setpoint {
+        love_letter::Setpoint {
+            enable: self.enable,
+            mockloop_setpoint: self.mockloop_setpoint.into(),
+            heart_controller_setpoint: self.heart_controller_setpoint.into(),
+        }
+    }
 }
 
 /// Setpoint for the mockloop hemodynamics controller
@@ -40,8 +51,8 @@ pub struct Setpoint {
 pub struct MockloopSetpoint {
     pub systemic_resistance: f32,
     pub pulmonary_resistance: f32,
-    pub left_afterload_compliance: f32,
-    pub right_afterload_compliance: f32,
+    pub systemic_afterload_compliance: f32,
+    pub pulmonary_afterload_compliance: f32,
 }
 
 /// Setpoint for the pneumatic heart prototype controller
@@ -79,8 +90,19 @@ impl From<FrontendMockloopSetpoint> for MockloopSetpoint {
         MockloopSetpoint {
             systemic_resistance: frontend.systemic_mmhg_s_per_l,
             pulmonary_resistance: frontend.pulmonary_mmhg_s_per_l,
-            left_afterload_compliance: frontend.left_afterload_compliance_l_per_mmhg,
-            right_afterload_compliance: frontend.right_afterload_compliance_l_per_mmhg,
+            systemic_afterload_compliance: frontend.left_afterload_compliance_l_per_mmhg,
+            pulmonary_afterload_compliance: frontend.right_afterload_compliance_l_per_mmhg,
+        }
+    }
+}
+
+impl Into<love_letter::MockloopSetpoint> for MockloopSetpoint {
+    fn into(self) -> love_letter::MockloopSetpoint {
+        love_letter::MockloopSetpoint {
+            systemic_resistance: self.systemic_resistance,
+            pulmonary_resistance: self.pulmonary_resistance,
+            systemic_afterload_compliance: self.systemic_afterload_compliance,
+            pulmonary_afterload_compliance: self.pulmonary_afterload_compliance,
         }
     }
 }
@@ -91,6 +113,16 @@ impl From<FrontendHeartControllerSetpoint> for HeartControllerSetpoint {
             heart_rate: Frequency::new::<hertz>(frontend.heart_rate),
             pressure: Pressure::new::<bar>(frontend.pressure),
             systole_ratio: frontend.systole_ratio,
+        }
+    }
+}
+
+impl Into<love_letter::HeartControllerSetpoint> for HeartControllerSetpoint {
+    fn into(self) -> love_letter::HeartControllerSetpoint {
+        love_letter::HeartControllerSetpoint {
+            heart_rate: self.heart_rate,
+            pressure: self.pressure,
+            systole_ratio: self.systole_ratio,
         }
     }
 }
