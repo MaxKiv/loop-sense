@@ -1,7 +1,5 @@
 use std::sync::{Arc, Mutex};
 
-use crate::frontend_messages::Setpoint;
-
 /// All shared state involved in http (DB & frontend) communication
 #[derive(Debug, Clone)]
 pub struct AppState {
