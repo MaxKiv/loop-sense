@@ -1,6 +1,7 @@
 use loop_sense::appstate::AppState;
 use loop_sense::communicator::mockloop_communicator::MockloopCommunicator;
 use loop_sense::controller::backend::mockloop_hardware::SensorData;
+use love_letter::{Report, Setpoint};
 use tokio::sync::mpsc::Sender;
 use tokio::time::{self, Duration, Instant};
 use tracing::{error, info, warn};
@@ -9,18 +10,19 @@ const COMMS_LOOP_PERIOD: Duration = Duration::from_millis(100);
 
 pub async fn communicate_with_micro<C: MockloopCommunicator>(
     mut communicator: C,
-    state: AppState,
-    db_sender: Sender<SensorData>,
+    setpoint_receiver: Receiver<Setpoint>,
+    report_sender: Sender<Report>,
 ) {
     let mut next_tick_time = Instant::now() + COMMS_LOOP_PERIOD;
     loop {
-        // TODO: use tokio select instead of awaiting communicator sequentially?
-        // Doesn't this cause problems when we are halfway through sending and our receiving future
-        // completes? If we really want this sending/receiving should be seperate tasks
+        // Note: Don't use tokio select instead of awaiting communicator sequentially
+        // This cause problems when we are halfway through sending and our receiving future
+        // completes, causing our sending future to drop.
+        // If we really want this sending/receiving should be in seperate tasks
 
         // Read latest setpoint and forward to hardware
         let setpoint = state
-            .controller_setpoint
+            .setpoint
             .lock()
             .expect("Unable to lock controller_setpoint mutex in communicate_with_micro")
             .clone();
@@ -28,7 +30,7 @@ pub async fn communicate_with_micro<C: MockloopCommunicator>(
 
         // Receive measurements from hardware and forward to controller
         let data = communicator.receive_data().await;
-        if let Ok(mut sensor_data) = state.sensor_data.lock() {
+        if let Ok(mut sensor_data) = state.report.lock() {
             *sensor_data = data.clone()
         }
 

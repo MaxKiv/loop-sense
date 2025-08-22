@@ -41,21 +41,17 @@ async fn main() {
     let initial_setpoint = Setpoint::default();
     let initial_data = SensorData::default();
     let state = AppState {
-        controller_setpoint: Arc::new(Mutex::new(initial_setpoint)),
-        sensor_data: Arc::new(Mutex::new(initial_data)),
+        setpoint: Arc::new(Mutex::new(initial_setpoint)),
+        report: Arc::new(Mutex::new(initial_data)),
     };
 
     // Track async task handles to join them later
     let mut handles = Vec::new();
 
-    // Delegate all microcontroller communication to a separate tokio task
-    let (db_sender, db_receiver) = tokio::sync::mpsc::channel(100);
-
     #[cfg(not(feature = "stm32g4"))]
     let (communicator, receiver) = PassThroughCommunicator::new_with_receiver();
-
-    // Spin until uart connection is established
     #[cfg(feature = "stm32g4")]
+    // Spin until uart connection is established
     let communicator = loop {
         match UartCommunicator::try_new() {
             Ok(c) => break c,
@@ -66,7 +62,10 @@ async fn main() {
         }
     };
 
-    // Spawn
+    // Create communication channels between tasks
+    let (db_sender, db_receiver) = tokio::sync::mpsc::channel(100);
+
+    // Delegate all microcontroller communication to a separate tokio task
     let handle = task::spawn(communicate_with_micro(
         communicator,
         state.clone(),
@@ -77,8 +76,8 @@ async fn main() {
     // Start the high level control loop in a separate task
     #[cfg(not(feature = "stm32g4"))]
     let handle = task::spawn(high_lvl_control_loop(receiver));
-    #[cfg(feature = "nidaq")]
-    let handle = task::spawn(high_lvl_control_loop());
+    #[cfg(feature = "stm32g4")]
+    let handle = task::spawn(high_lvl_control_loop(state.clone()));
 
     handles.push(handle);
 
