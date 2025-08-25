@@ -1,11 +1,9 @@
 use crate::axumstate::AxumState;
 use crate::db_communication_task::communicate_with_db;
 use crate::experiment::manage::manage_experiments;
-use crate::http::get_data;
-use crate::http::get_experiment_status;
-use crate::http::post_setpoint;
-use crate::http::start_experiment;
-use crate::http::stop_experiment;
+use crate::http::get::*;
+use crate::http::post::*;
+use crate::messages::frontend_messages;
 use crate::micro_communication_task::communicate_with_micro;
 use axum::Router;
 use axum::routing::get;
@@ -48,14 +46,15 @@ async fn main() {
         tokio::sync::watch::channel(None);
 
     // Initialize application state
-    let initial_setpoint = None;
+    let initial_setpoint: frontend_messages::Setpoint = love_letter::Setpoint::default().into();
     let initial_report = None;
-    let initial_experiment = None;
+    let initial_experiment_status = None;
     let state = AxumState {
         setpoint: Arc::new(Mutex::new(initial_setpoint)),
         report: Arc::new(Mutex::new(initial_report)),
-        experiment: Arc::new(Mutex::new(initial_experiment)),
+        experiment_status: Arc::new(Mutex::new(initial_experiment_status)),
         experiment_watch: experiment_started_sender,
+        experiments: Arc::new(Mutex::new(Vec::new())),
     };
 
     #[cfg(feature = "sim-mcu")]
@@ -75,7 +74,7 @@ async fn main() {
     };
 
     // Delegate all microcontroller communication to a separate tokio task
-    let handle = task::spawn(communicate_with_micro(
+    task::spawn(communicate_with_micro(
         mcu_communicator,
         mcu_setpoint_receiver,
         mcu_report_sender,
@@ -85,7 +84,7 @@ async fn main() {
     #[cfg(feature = "sim-mcu")]
     let handle = task::spawn(high_lvl_control_loop(state.clone()));
     #[cfg(not(feature = "sim-mcu"))]
-    let handle = task::spawn(controller::control_loop(
+    task::spawn(controller::control_loop(
         mcu_report_receiver,
         mcu_setpoint_sender,
         experiment_receiver,
@@ -94,23 +93,26 @@ async fn main() {
     ));
 
     // Start the experiment manager task
-    let handle = task::spawn(manage_experiments(
+    task::spawn(manage_experiments(
         experiment_started_receiver,
         experiment_sender,
     ));
 
     // Start the DB communication task
-    let handle = task::spawn(communicate_with_db(db_report_receiver));
+    task::spawn(communicate_with_db(db_report_receiver));
 
     // Set up Axum routers
     let app = Router::new()
         // GET endpoints
-        .route("/data", get(get_data))
+        .route("/hearbeat", get(get_heartbeat))
+        .route("/measurements", get(get_measurements))
         .route("/experiment/status", get(get_experiment_status))
         // POST endpoints
-        .route("/setpoint", post(post_setpoint))
-        .route("/experiment/start", post(start_experiment))
-        .route("/experiment/stop", post(stop_experiment))
+        .route("/control/loop", post(post_loop_setpoint))
+        .route("/control/heart", post(post_heart_setpoint))
+        .route("/experiment/list", post(get_list_experiment))
+        .route("/experiment/start", post(post_start_experiment))
+        .route("/experiment/stop", post(post_stop_experiment))
         // Give the routers access to the application state
         .with_state(state.clone());
 

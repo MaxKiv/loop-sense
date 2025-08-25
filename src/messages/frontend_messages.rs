@@ -5,7 +5,7 @@ use uom::si::{
     pressure::bar,
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub struct Report {
     right_preload_pressure_mmhg: f32,
     left_preload_pressure_mmhg: f32,
@@ -42,6 +42,16 @@ impl Into<love_letter::Setpoint> for Setpoint {
             enable: self.enable,
             mockloop_setpoint: self.mockloop_setpoint.into(),
             heart_controller_setpoint: self.heart_controller_setpoint.into(),
+        }
+    }
+}
+
+impl From<love_letter::Setpoint> for Setpoint {
+    fn from(setpoint: love_letter::Setpoint) -> Self {
+        Self {
+            enable: setpoint.enable,
+            mockloop_setpoint: setpoint.mockloop_setpoint.into(),
+            heart_controller_setpoint: setpoint.heart_controller_setpoint.into(),
         }
     }
 }
@@ -96,6 +106,17 @@ impl From<FrontendMockloopSetpoint> for MockloopSetpoint {
     }
 }
 
+impl From<love_letter::MockloopSetpoint> for MockloopSetpoint {
+    fn from(mcu: love_letter::MockloopSetpoint) -> Self {
+        Self {
+            systemic_resistance: mcu.systemic_resistance,
+            pulmonary_resistance: mcu.pulmonary_resistance,
+            systemic_afterload_compliance: mcu.systemic_afterload_compliance,
+            pulmonary_afterload_compliance: mcu.pulmonary_afterload_compliance,
+        }
+    }
+}
+
 impl Into<love_letter::MockloopSetpoint> for MockloopSetpoint {
     fn into(self) -> love_letter::MockloopSetpoint {
         love_letter::MockloopSetpoint {
@@ -123,6 +144,16 @@ impl Into<love_letter::HeartControllerSetpoint> for HeartControllerSetpoint {
             heart_rate: self.heart_rate,
             pressure: self.pressure,
             systole_ratio: self.systole_ratio,
+        }
+    }
+}
+
+impl From<love_letter::HeartControllerSetpoint> for HeartControllerSetpoint {
+    fn from(mcu: love_letter::HeartControllerSetpoint) -> Self {
+        Self {
+            heart_rate: mcu.heart_rate,
+            pressure: mcu.pressure,
+            systole_ratio: mcu.systole_ratio,
         }
     }
 }

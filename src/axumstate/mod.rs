@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::watch::Sender;
 
 use crate::{
-    experiment::{ExperimentStartMessage, ExperimentStatus},
+    experiment::{Experiment, ExperimentStartMessage, ExperimentStatus},
     messages::frontend_messages,
 };
 
@@ -11,7 +11,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct AxumState {
     // Latest setpoint received from the frontend
-    pub setpoint: Arc<Mutex<Option<frontend_messages::Setpoint>>>,
+    pub setpoint: Arc<Mutex<frontend_messages::Setpoint>>,
 
     /// Latest report to expose to http
     pub report: Arc<Mutex<Option<frontend_messages::Report>>>,
@@ -21,4 +21,7 @@ pub struct AxumState {
 
     /// Status of the currently running experiment
     pub experiment_status: Arc<Mutex<Option<ExperimentStatus>>>,
+
+    /// List of all experiments
+    pub experiments: Arc<Mutex<Vec<Experiment>>>,
 }

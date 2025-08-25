@@ -4,7 +4,7 @@ use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Experiment {
     pub is_running: bool,
     pub id: Uuid,
@@ -26,7 +26,7 @@ pub struct ExperimentStatus {
     duration_seconds: Duration,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ExperimentStartMessage {
     name: String,
     description: String,
