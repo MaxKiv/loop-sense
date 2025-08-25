@@ -4,6 +4,7 @@ use love_letter::Measurements;
 use uom::si::{frequency::hertz, pressure::bar, volume_rate::liter_per_minute};
 
 use crate::{
+    control::ControllerReport,
     experiment::Experiment,
     messages::frontend_messages::{HeartControllerSetpoint, MockloopSetpoint},
 };
@@ -30,16 +31,8 @@ pub struct DatabaseRecord {
     experiment_description: String,
 }
 
-pub struct DatabaseReport {
-    pub mockloop_setpoint: MockloopSetpoint,
-    pub heart_controller_setpoint: HeartControllerSetpoint,
-    pub measurements: Measurements,
-    pub experiment: Experiment,
-    pub time: DateTime<Utc>,
-}
-
-impl From<DatabaseReport> for DatabaseRecord {
-    fn from(r: DatabaseReport) -> Self {
+impl From<ControllerReport> for DatabaseRecord {
+    fn from(r: ControllerReport) -> Self {
         // Parse uuid into hyphenated string
         let mut buf = [b'0'; 40];
         let uuid = r.experiment.id.as_hyphenated().encode_lower(&mut buf);

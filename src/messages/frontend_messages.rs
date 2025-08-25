@@ -3,9 +3,12 @@ use uom::si::{
     f32::{Frequency, Pressure},
     frequency::hertz,
     pressure::bar,
+    volume_rate::liter_per_minute,
 };
 
-#[derive(Debug, Clone, Copy, Serialize)]
+use crate::control::ControllerReport;
+
+#[derive(Debug, Clone, Serialize)]
 pub struct Report {
     right_preload_pressure_mmhg: f32,
     left_preload_pressure_mmhg: f32,
@@ -21,22 +24,55 @@ pub struct Report {
     left_afterload_compliance: f32,
     right_afterload_compliance: f32,
     simulation_time: f32,
-    time: f32,
-    experiment_id: f32,          // TODO: make this tag
-    experiment_name: f32,        // TODO: make this tag
-    experiment_description: f32, // TODO: make this tag
+    time: i64,
+    experiment_id: String,          // TODO: make this tag
+    experiment_name: String,        // TODO: make this tag
+    experiment_description: String, // TODO: make this tag
+}
+
+impl From<ControllerReport> for Report {
+    fn from(r: ControllerReport) -> Self {
+        // Parse uuid into hyphenated string
+        let mut buf = [b'0'; 40];
+        let uuid = r.experiment.id.as_hyphenated().encode_lower(&mut buf);
+
+        Self {
+            right_preload_pressure_mmhg: r.measurements.pulmonary_preload_pressure.get::<bar>(),
+            left_preload_pressure_mmhg: r.measurements.systemic_preload_pressure.get::<bar>(),
+            right_afterload_pressure_mmhg: r.measurements.pulmonary_afterload_pressure.get::<bar>(),
+            left_afterload_pressure_mmhg: r.measurements.systemic_afterload_pressure.get::<bar>(),
+            systemic_flow_l_per_min: r.measurements.systemic_flow.get::<liter_per_minute>(),
+            pulmonary_flow_l_per_min: r.measurements.pulmonary_flow.get::<liter_per_minute>(),
+            heart_rate: r.heart_controller_setpoint.heart_rate.get::<hertz>(),
+            pressure: r.heart_controller_setpoint.pressure.get::<bar>(),
+            systole_ratio: r.heart_controller_setpoint.systole_ratio,
+            systemic_resistance: r.mockloop_setpoint.systemic_resistance,
+            pulmonary_resistance: r.mockloop_setpoint.pulmonary_resistance,
+            left_afterload_compliance: r.mockloop_setpoint.systemic_afterload_compliance,
+            right_afterload_compliance: r.mockloop_setpoint.pulmonary_afterload_compliance,
+            simulation_time: 0.0,
+            time: r
+                .time
+                .timestamp_nanos_opt()
+                .unwrap()
+                .try_into()
+                .unwrap_or(0i64),
+            experiment_id: uuid.to_string(),
+            experiment_name: r.experiment.name,
+            experiment_description: r.experiment.description,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct Setpoint {
-    // pub current_time: DateTimeWrapper,
+pub struct FrontendSetpoint {
     /// Should the mockloop controller be enabled?
     pub enable: bool,
     pub mockloop_setpoint: MockloopSetpoint,
     pub heart_controller_setpoint: HeartControllerSetpoint,
 }
 
-impl Into<love_letter::Setpoint> for Setpoint {
+impl Into<love_letter::Setpoint> for FrontendSetpoint {
     fn into(self) -> love_letter::Setpoint {
         love_letter::Setpoint {
             enable: self.enable,
@@ -46,7 +82,7 @@ impl Into<love_letter::Setpoint> for Setpoint {
     }
 }
 
-impl From<love_letter::Setpoint> for Setpoint {
+impl From<love_letter::Setpoint> for FrontendSetpoint {
     fn from(setpoint: love_letter::Setpoint) -> Self {
         Self {
             enable: setpoint.enable,

@@ -4,12 +4,13 @@ use chrono::{DateTime, Datelike, Local, TimeZone, Utc};
 use influxdb::{Client, InfluxDbWriteable as _, WriteQuery};
 use serde_json::Value;
 use tokio::sync::mpsc::Receiver;
-use tokio::time::{self, Duration, Instant};
-use tracing::{debug, error, info, warn};
+use tokio::time::{self, Duration};
+use tracing::*;
 
+use crate::control::ControllerReport;
 use crate::database::query::GET_LATEST_MEASUREMENT_ID;
 use crate::database::secrets::*;
-use crate::messages::db_messages::{DatabaseRecord, DatabaseReport};
+use crate::messages::db_messages::DatabaseRecord;
 
 const DB_LOOP_PERIOD: Duration = Duration::from_millis(100);
 const QUERY_BATCH_LEN: usize = 100;
@@ -34,7 +35,7 @@ type MeasurementID = usize;
 type TableName = String;
 
 /// Log recorded sensor data and logs to the database
-pub async fn communicate_with_db(mut db_report_receiver: Receiver<DatabaseReport>) {
+pub async fn communicate_with_db(mut db_report_receiver: Receiver<ControllerReport>) {
     // Loop timekeeping
     let mut ticker = time::interval(DB_LOOP_PERIOD);
 

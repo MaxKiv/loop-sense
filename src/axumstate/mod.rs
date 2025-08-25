@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex};
 
+use chrono::{DateTime, Utc};
 use tokio::sync::watch::Sender;
 
 use crate::{
@@ -11,7 +12,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct AxumState {
     // Latest setpoint received from the frontend
-    pub setpoint: Arc<Mutex<frontend_messages::Setpoint>>,
+    pub setpoint: Arc<Mutex<frontend_messages::FrontendSetpoint>>,
 
     /// Latest report to expose to http
     pub report: Arc<Mutex<Option<frontend_messages::Report>>>,
@@ -24,4 +25,7 @@ pub struct AxumState {
 
     /// List of all experiments
     pub experiments: Arc<Mutex<Vec<Experiment>>>,
+
+    /// Time at which this application was started
+    pub start_time: Arc<DateTime<Utc>>,
 }

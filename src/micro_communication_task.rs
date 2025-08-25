@@ -1,9 +1,7 @@
 use love_letter::{Report, Setpoint};
+use tokio::sync::{mpsc, watch};
 use tokio::time::Duration;
-use tokio::{
-    sync::mpsc::{Receiver, Sender},
-    time::{self, timeout},
-};
+use tokio::time::{self, timeout};
 use tracing::*;
 
 use crate::communicator::MockloopCommunicator;
@@ -15,8 +13,8 @@ const COMMS_TIMEOUT: Duration = Duration::from_millis(5);
 
 pub async fn communicate_with_micro<C: MockloopCommunicator>(
     mut communicator: C,
-    mut setpoint_receiver: Receiver<Setpoint>,
-    report_sender: Sender<Report>,
+    mut setpoint_receiver: watch::Receiver<Setpoint>,
+    report_sender: mpsc::Sender<Report>,
 ) {
     let mut ticker = time::interval(COMMS_LOOP_PERIOD);
 
@@ -26,24 +24,16 @@ pub async fn communicate_with_micro<C: MockloopCommunicator>(
         // completes, causing our sending future to drop.
         // If we really want this sending/receiving should be in seperate tasks
 
-        // Receive latest mcu setpoint from the controller task and send to the mcu
-        match timeout(COMMS_TIMEOUT, setpoint_receiver.recv()).await {
-            Ok(Some(setpoint)) => {
-                if let Err(err) = timeout(COMMS_TIMEOUT, communicator.send_setpoint(setpoint)).await
-                {
-                    error!("timeout sending setpoint to mcu: {err}");
-                }
-            }
-            Err(err) => {
-                error!("timeout receiving setpoint from controller task: {err}");
-            }
-            _ => {}
+        // Send latest setpoint to the mcu
+        let setpoint = *setpoint_receiver.borrow();
+        if let Err(err) = timeout(COMMS_TIMEOUT, communicator.send_setpoint(setpoint)).await {
+            error!("timeout sending setpoint to mcu: {err}");
         }
 
         // Receive latest report from mcu and forward to controller task
         match timeout(COMMS_TIMEOUT, communicator.receive_report()).await {
-            Ok(report) => {
-                if let Err(err) = timeout(COMMS_TIMEOUT, report_sender.send(report)).await {
+            Ok(mcu_report) => {
+                if let Err(err) = timeout(COMMS_TIMEOUT, report_sender.send(mcu_report)).await {
                     error!("timeout sending report to controller task: {err}");
                 }
             }
