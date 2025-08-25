@@ -63,10 +63,7 @@ pub async fn post_start_experiment(
 }
 
 #[axum::debug_handler]
-pub async fn post_stop_experiment(
-    state: axum::extract::State<AxumState>,
-    Json(start_message): Json<experiment::ExperimentStartMessage>,
-) -> StatusCode {
-    state.experiment_watch.send(Some(start_message));
+pub async fn post_stop_experiment(state: axum::extract::State<AxumState>) -> StatusCode {
+    state.experiment_watch.send(None);
     StatusCode::OK
 }

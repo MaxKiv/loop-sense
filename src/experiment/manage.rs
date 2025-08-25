@@ -1,5 +1,6 @@
 use chrono::Utc;
 use tokio::sync::watch::{Receiver, Sender};
+use tracing::*;
 use uuid::Uuid;
 
 use crate::experiment::{Experiment, ExperimentStartMessage};
@@ -15,23 +16,33 @@ pub async fn manage_experiments(
     loop {
         // Wait untill a new experiment is started
         if experiment_started_receiver.changed().await.is_ok() {
-            if let Some(new_experiment_message) =
-                experiment_started_receiver.borrow_and_update().clone()
-            {
-                // Construct a new experiment
-                let new_experiment = Experiment {
-                    is_running: true,
-                    id: Uuid::new_v4(),
-                    name: new_experiment_message.name.to_string(),
-                    description: new_experiment_message.description.to_string(),
-                    table_name: "TODO".to_string(),
-                    start_time: Utc::now(),
-                    duration_seconds: chrono::Duration::zero(),
-                };
+            match experiment_started_receiver.borrow_and_update().clone() {
+                Some(ExperimentStartMessage { name, description }) => {
+                    // Construct a new experiment
+                    let new_experiment = Experiment {
+                        is_running: true,
+                        id: Uuid::new_v4(),
+                        name: name.to_string(),
+                        description,
+                        table_name: create_table_from_experiment(&name),
+                        start_time: Utc::now(),
+                        duration_seconds: chrono::Duration::zero(),
+                    };
 
-                // Notify control loop?
-                experiment_sender.send(Some(new_experiment));
+                    info!("New experiment started: {:?}", new_experiment);
+
+                    // Notify control loop
+                    experiment_sender.send(Some(new_experiment));
+                }
+                None => {
+                    // Experiment stopped, notify control loop
+                    experiment_sender.send(None);
+                }
             }
         }
     }
+}
+
+fn create_table_from_experiment(name: &str) -> String {
+    format!("experiment_{}_{}", name, Utc::now().format("%Y%m%d_%H%M%S"))
 }

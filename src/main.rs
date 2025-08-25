@@ -1,4 +1,5 @@
 use crate::axumstate::AxumState;
+use crate::control::controller::control_loop;
 use crate::db_communication_task::communicate_with_db;
 use crate::experiment::manage::manage_experiments;
 use crate::http::get::*;
@@ -8,7 +9,12 @@ use crate::micro_communication_task::communicate_with_micro;
 use axum::Router;
 use axum::routing::get;
 use axum::routing::post;
+use chrono::Utc;
+use love_letter::Report as McuReport;
 use std::sync::{Arc, Mutex};
+use tokio::sync::mpsc;
+use tokio::sync::watch::Receiver;
+use tokio::sync::watch::Sender;
 use tokio::task;
 use tokio::time;
 use tokio::time::Duration;
@@ -17,7 +23,7 @@ use tracing_subscriber::FmtSubscriber;
 
 pub mod axumstate;
 pub mod communicator;
-pub mod controller;
+pub mod control;
 pub mod database;
 pub mod db_communication_task;
 pub mod experiment;
@@ -39,14 +45,20 @@ async fn main() {
 
     // Create communication channels between tasks
     let (db_report_sender, db_report_receiver) = tokio::sync::mpsc::channel(100);
-    let (mcu_setpoint_sender, mcu_setpoint_receiver) = tokio::sync::mpsc::channel(100);
-    let (mcu_report_sender, mcu_report_receiver) = tokio::sync::mpsc::channel(100);
+    let (mcu_setpoint_sender, mcu_setpoint_receiver) =
+        tokio::sync::watch::channel(love_letter::Setpoint::default());
+    let (mcu_report_sender, mcu_report_receiver): (
+        mpsc::Sender<love_letter::Report>,
+        mpsc::Receiver<love_letter::Report>,
+    ) = tokio::sync::mpsc::channel(10);
     let (experiment_sender, experiment_receiver) = tokio::sync::watch::channel(None);
     let (experiment_started_sender, experiment_started_receiver) =
         tokio::sync::watch::channel(None);
 
     // Initialize application state
-    let initial_setpoint: frontend_messages::Setpoint = love_letter::Setpoint::default().into();
+    let initial_setpoint: frontend_messages::FrontendSetpoint =
+        love_letter::Setpoint::default().into();
+
     let initial_report = None;
     let initial_experiment_status = None;
     let state = AxumState {
@@ -55,6 +67,7 @@ async fn main() {
         experiment_status: Arc::new(Mutex::new(initial_experiment_status)),
         experiment_watch: experiment_started_sender,
         experiments: Arc::new(Mutex::new(Vec::new())),
+        start_time: Arc::new(Utc::now()),
     };
 
     #[cfg(feature = "sim-mcu")]
@@ -63,12 +76,16 @@ async fn main() {
     // Spin until uart connection is established
     let mcu_communicator = loop {
         use crate::communicator::uart::UartCommunicator;
+        const UART_RETRY_DURATION: Duration = Duration::from_millis(500);
 
         match UartCommunicator::try_new() {
             Ok(c) => break c,
             Err(err) => {
-                error!("Unable to open uart communicator, spinning...");
-                time::sleep(Duration::from_millis(500)).await;
+                error!(
+                    "Unable to open uart communicator: {err}, retrying in {}ms",
+                    UART_RETRY_DURATION.as_millis()
+                );
+                time::sleep(UART_RETRY_DURATION).await;
             }
         }
     };
@@ -84,7 +101,7 @@ async fn main() {
     #[cfg(feature = "sim-mcu")]
     let handle = task::spawn(high_lvl_control_loop(state.clone()));
     #[cfg(not(feature = "sim-mcu"))]
-    task::spawn(controller::control_loop(
+    task::spawn(control_loop(
         mcu_report_receiver,
         mcu_setpoint_sender,
         experiment_receiver,
