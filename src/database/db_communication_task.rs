@@ -12,12 +12,12 @@ use crate::database::query::GET_LATEST_MEASUREMENT_ID;
 use crate::database::secrets::*;
 use crate::messages::db_messages::DatabaseRecord;
 
-const DB_LOOP_PERIOD: Duration = Duration::from_millis(100);
+const DB_LOOP_PERIOD: Duration = Duration::from_millis(1000);
 const QUERY_BATCH_LEN: usize = 100;
 const DEFAULT_MEASUREMENT_ID: usize = 1;
 
 #[derive(Debug)]
-enum DBCommsError {
+pub enum DBCommsError {
     DBConnection(influxdb::Error),
     QueryMeasurementID(influxdb::Error),
     DeserialiseMeasurementID(serde_json::Error),

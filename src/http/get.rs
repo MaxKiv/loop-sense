@@ -10,7 +10,7 @@ pub async fn get_measurements(
     state: axum::extract::State<AxumState>,
 ) -> Result<Json<Report>, StatusCode> {
     if let Ok(guard) = state.report.lock() {
-        if let Some(report) = *guard {
+        if let Some(ref report) = *guard {
             // Return json-serialised report
             info!("GET measurements returning report: {:?}", report);
             return Ok(Json(report.clone()));
@@ -43,7 +43,7 @@ pub async fn get_experiment_status(
         if let Some(status) = status.clone() {
             Ok(Json(status.clone()))
         } else {
-            return Err(StatusCode::NO_CONTENT);
+            Err(StatusCode::NO_CONTENT)
         }
     } else {
         error!("Unable to fetch the current experiment status");
@@ -65,5 +65,5 @@ pub async fn get_list_experiment(
     }
 
     warn!("GET experiment list returned nothing");
-    return Err(StatusCode::NO_CONTENT);
+    Err(StatusCode::NO_CONTENT)
 }

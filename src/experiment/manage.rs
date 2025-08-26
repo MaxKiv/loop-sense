@@ -14,7 +14,7 @@ pub async fn manage_experiments(
     experiment_sender: Sender<Option<Experiment>>,
 ) {
     loop {
-        // Wait untill a new experiment is started
+        // Wait until a new experiment is started
         if experiment_started_receiver.changed().await.is_ok() {
             match experiment_started_receiver.borrow_and_update().clone() {
                 Some(ExperimentStartMessage { name, description }) => {
@@ -32,11 +32,15 @@ pub async fn manage_experiments(
                     info!("New experiment started: {:?}", new_experiment);
 
                     // Notify control loop
-                    experiment_sender.send(Some(new_experiment));
+                    if let Err(err) = experiment_sender.send(Some(new_experiment)) {
+                        error!("Unable to notify control loop of new experiment: {err}");
+                    }
                 }
                 None => {
                     // Experiment stopped, notify control loop
-                    experiment_sender.send(None);
+                    if let Err(err) = experiment_sender.send(None) {
+                        error!("Unable to notify control loop of new experiment: {err}");
+                    }
                 }
             }
         }

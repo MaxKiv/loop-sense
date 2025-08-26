@@ -13,8 +13,8 @@ use tracing::*;
 use crate::{axumstate::AxumState, experiment::Experiment};
 
 /// Bounds the maximum duration between consecutive setpoints / reports
-const COMMS_TIMEOUT: Duration = Duration::from_millis(5);
-const CONTROL_LOOP_PERIOD: Duration = Duration::from_millis(10);
+const COMMS_TIMEOUT: Duration = Duration::from_millis(2000);
+const CONTROL_LOOP_PERIOD: Duration = Duration::from_millis(1000);
 
 /// High level control loop for the HHH SBC, responsible for:
 /// * Parsing received MCU reports

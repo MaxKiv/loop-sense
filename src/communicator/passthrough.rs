@@ -38,7 +38,8 @@ impl PassThroughCommunicator {
 
 pub fn simulate_report() -> Report {
     Report {
-        app_state: (),
-        measurements: (),
+        app_state: todo!(),
+        measurements: todo!(),
+        setpoint: todo!(),
     }
 }
