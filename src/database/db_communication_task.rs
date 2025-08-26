@@ -10,6 +10,7 @@ use tracing::*;
 use crate::control::ControllerReport;
 use crate::database::query::GET_LATEST_MEASUREMENT_ID;
 use crate::database::secrets::*;
+use crate::experiment::Experiment;
 use crate::messages::db_messages::DatabaseRecord;
 
 const DB_LOOP_PERIOD: Duration = Duration::from_millis(1000);
@@ -49,36 +50,39 @@ pub async fn communicate_with_db(mut db_report_receiver: Receiver<ControllerRepo
 
     // Main routine
     loop {
-        // Receive report from the controller task task
+        // Wait to receive report from the controller task task:
+        // This means an experiment is running and we need to log the measurements to the DB
         if let Some(report) = db_report_receiver.recv().await {
             // Batch received measurements
-            batched_data.push(DatabaseRecord::from(report));
+            batched_data.push(DatabaseRecord::from(report.clone()));
             debug!("batched_query {:?}", batched_data);
-        } else {
-            error!("DB write error: unable to receive sensor date - Receiver is closed");
-        }
 
-        // Write measurements to DB when batch is filled
-        if batched_data.len() >= QUERY_BATCH_LEN {
-            let query: Vec<WriteQuery> = batched_data
-                .clone()
-                .into_iter()
-                .map(|el| el.into_query(sensor_data_table.clone()))
-                .collect();
+            // Write measurements to DB when batch is filled
+            if batched_data.len() >= QUERY_BATCH_LEN {
+                let query: Vec<WriteQuery> = batched_data
+                    .clone()
+                    .into_iter()
+                    .map(|el| el.into_query(report.experiment.table_name.clone()))
+                    .collect();
 
-            match db_client.query(query).await {
-                Ok(_) => error!("Inserted Batched measurements into the DB"),
-                Err(err) => {
-                    error!(
-                        "Error inserting batched measurements into the DB: {:?} - using fallback",
-                        err
-                    );
+                match db_client.query(query).await {
+                    Ok(_) => error!("Inserted Batched measurements into the DB"),
+                    Err(err) => {
+                        error!(
+                            "Error inserting batched measurements into the DB: {:?} - using fallback",
+                            err
+                        );
 
-                    // Write to fallback hashmap
-                    fall_back_storage.append(&mut batched_data);
+                        // Write to fallback hashmap
+                        fall_back_storage.append(&mut batched_data);
+                    }
                 }
+                batched_data.clear();
             }
-            batched_data.clear();
+        } else {
+            error!(
+                "DB write error: unable to receive report from controller task - Receiver is closed"
+            );
         }
 
         // Loop timekeeping
