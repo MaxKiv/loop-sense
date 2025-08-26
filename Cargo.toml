@@ -23,6 +23,7 @@ love-letter = { path = "../love-letter" }
 # love-letter = { git = "ssh://git@bitbucket.org/mechatronica/love_letter.git" }
 tokio-serial = "5.4.5"
 uuid = { version = "1.18.0", features = ["serde", "v4"] }
+tower-http = { version = "0.3", features = ["cors"] }
 
 [dev-dependencies]
 axum = "0.8.4"

@@ -9,12 +9,18 @@ use crate::micro_communication_task::communicate_with_micro;
 use axum::Router;
 use axum::routing::get;
 use axum::routing::post;
+use axum::{
+    Router, Server,
+    http::{Method, header},
+    routing::{get, post},
+};
 use chrono::Utc;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use tokio::task;
 use tokio::time;
 use tokio::time::Duration;
+use tower_http::cors::{Any, CorsLayer};
 use tracing::*;
 use tracing_subscriber::FmtSubscriber;
 
@@ -114,10 +120,23 @@ async fn main() {
     // Start the DB communication task
     task::spawn(communicate_with_db(db_report_receiver));
 
+    // Configure CORS for specific origins and methods
+    let allowed_origins = AllowedOrigins::some_exact(&[
+        "http://localhost:5173".parse().unwrap(), // Common port for Vite dev server
+        "https://my-prod-frontend.com".parse().unwrap(),
+    ]);
+    let cors = CorsLayer::new()
+        .allow_origin(allowed_origins)
+        .allow_methods([Method::GET, Method::POST]) // Allow GET and POST
+        .allow_headers([header::CONTENT_TYPE]) // Allow Content-Type header
+        .allow_credentials(false); // Example: No credentials needed
+
+    let app = Router::new().route("/", get(get_heartbeat)).layer(cors); // Attach CORS middleware
+
     // Set up Axum routers
     let app = Router::new()
         // GET endpoints
-        .route("/hearbeat", get(get_heartbeat))
+        .route("/heartbeat", get(get_heartbeat))
         .route("/measurements", get(get_measurements))
         .route("/experiment/status", get(get_experiment_status))
         // POST endpoints
@@ -127,6 +146,7 @@ async fn main() {
         .route("/experiment/start", post(post_start_experiment))
         .route("/experiment/stop", post(post_stop_experiment))
         // Give the routers access to the application state
+        .layer(cors.clone()) // Attach CORS middleware
         .with_state(state.clone());
 
     // Start serving webrequests
