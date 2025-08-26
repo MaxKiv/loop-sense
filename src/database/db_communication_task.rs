@@ -149,15 +149,14 @@ pub async fn fetch_measurement_id_from_db(db_client: Arc<Client>) -> Result<usiz
     let json = db_client
         .query(query)
         .await
-        .map_err(|err| DBCommsError::QueryMeasurementID(err))?;
+        .map_err(DBCommsError::QueryMeasurementID)?;
 
-    let v: Value =
-        serde_json::from_str(&json).map_err(|err| DBCommsError::DeserialiseMeasurementID(err))?;
+    let v: Value = serde_json::from_str(&json).map_err(DBCommsError::DeserialiseMeasurementID)?;
 
     // Parse latest measurement id timestamp
     let timestamp = &v["results"][0]["series"][0]["values"][0][0]
         .as_str()
-        .ok_or_else(|| DBCommsError::MissingTimeStamp)?;
+        .ok_or(DBCommsError::MissingTimeStamp)?;
     let timestamp: DateTime<Utc> = timestamp
         .parse()
         .map_err(|_| DBCommsError::ParseTimeStamp(timestamp.to_string()))?;
@@ -185,5 +184,5 @@ fn is_yesterday_or_earlier(ts: DateTime<Utc>) -> bool {
         .with_ymd_and_hms(now.year(), now.month(), now.day(), 0, 0, 0)
         .unwrap();
 
-    return ts < today_start;
+    ts < today_start
 }
