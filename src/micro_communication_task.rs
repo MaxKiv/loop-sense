@@ -7,13 +7,13 @@ use tracing::*;
 use crate::communicator::MockloopCommunicator;
 
 /// Defines the frequency at which mcu communication takes place
-const COMMS_LOOP_PERIOD: Duration = Duration::from_millis(10);
+const COMMS_LOOP_PERIOD: Duration = Duration::from_millis(1000);
 /// Bounds the maximum duration between consecutive setpoints / reports
-const COMMS_TIMEOUT: Duration = Duration::from_millis(5);
+const COMMS_TIMEOUT: Duration = Duration::from_millis(2000);
 
 pub async fn communicate_with_micro<C: MockloopCommunicator>(
     mut communicator: C,
-    mut setpoint_receiver: watch::Receiver<Setpoint>,
+    setpoint_receiver: watch::Receiver<Setpoint>,
     report_sender: mpsc::Sender<Report>,
 ) {
     let mut ticker = time::interval(COMMS_LOOP_PERIOD);
@@ -25,7 +25,7 @@ pub async fn communicate_with_micro<C: MockloopCommunicator>(
         // If we really want this sending/receiving should be in seperate tasks
 
         // Send latest setpoint to the mcu
-        let setpoint = *setpoint_receiver.borrow();
+        let setpoint = setpoint_receiver.borrow().clone();
         if let Err(err) = timeout(COMMS_TIMEOUT, communicator.send_setpoint(setpoint)).await {
             error!("timeout sending setpoint to mcu: {err}");
         }
