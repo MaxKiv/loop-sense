@@ -28,7 +28,7 @@ pub async fn control_loop(
     mcu_setpoint_sender: watch::Sender<Setpoint>,
     mut experiment_receiver: watch::Receiver<Option<Experiment>>,
     axum_state: AxumState,
-    db_report_sender: Sender<ControllerReport>,
+    db_report_sender: mpsc::Sender<ControllerReport>,
 ) {
     let mut ticker = tokio::time::interval(CONTROL_LOOP_PERIOD);
 
@@ -47,7 +47,9 @@ pub async fn control_loop(
             let mcu_setpoint: love_letter::Setpoint = (*frontend_setpoint).clone().into();
 
             // Notify mcu communication task of the new mcu setpoint
-            mcu_setpoint_sender.send(mcu_setpoint);
+            if let Err(err) = mcu_setpoint_sender.send(mcu_setpoint) {
+                error!("unable to notify mcu communication task of new setpoint: {err}");
+            }
         }
 
         // Parse MCU report received from the mcu communcation task
@@ -92,7 +94,9 @@ pub async fn control_loop(
                             report.clone()
                         );
                         // Write latest report to db
-                        db_report_sender.send(report);
+                        if let Err(err) = db_report_sender.send(report).await {
+                            error!("Unable to send latest report to database task: {err}");
+                        }
                     }
                 } else {
                     info!("No experiment currently running, skipping DB write...");
