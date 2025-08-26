@@ -58,10 +58,11 @@ pub async fn post_start_experiment(
     state: axum::extract::State<AxumState>,
     Json(start_message): Json<experiment::ExperimentStartMessage>,
 ) -> StatusCode {
-    if let Err(err) = state.experiment_watch.send(Some(start_message)) {
+    if let Err(err) = state.experiment_watch.send(Some(start_message.clone())) {
         error!("Unable to start a new experiment: {err}");
         StatusCode::INTERNAL_SERVER_ERROR
     } else {
+        info!("Started a new experiment: {:?}", start_message);
         StatusCode::OK
     }
 }
@@ -72,6 +73,7 @@ pub async fn post_stop_experiment(state: axum::extract::State<AxumState>) -> Sta
         error!("Unable to stop current experiment: {err}");
         StatusCode::INTERNAL_SERVER_ERROR
     } else {
+        info!("Stopped experiment");
         StatusCode::OK
     }
 }

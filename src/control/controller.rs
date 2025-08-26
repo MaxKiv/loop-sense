@@ -38,6 +38,7 @@ pub async fn control_loop(
         // Did the experiment change?
         if experiment_receiver.has_changed().unwrap_or(false) {
             // Ask the experiment manager for the current experiment status
+            info!("Experiment change detected");
             current_experiment = (*experiment_receiver.borrow_and_update()).clone();
         }
 
@@ -88,9 +89,11 @@ pub async fn control_loop(
                     ..
                 }) = current_experiment
                 {
+                    warn!("An Experiment is running: writing to DB");
                     if is_running {
                         info!(
-                            "Experiment {id} - {name} is running for {duration_seconds}s, writing report to DB: {:?}",
+                            "Experiment {id} - {name} is running for {}s, writing report to DB: {:?}",
+                            duration_seconds.as_seconds_f32(),
                             report.clone()
                         );
                         // Write latest report to db
