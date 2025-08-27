@@ -5,6 +5,7 @@ use tokio::sync::watch::Sender;
 
 use crate::{
     experiment::{Experiment, ExperimentStartMessage, ExperimentStatus},
+    http::messages::ExperimentList,
     messages::frontend_messages,
 };
 
@@ -24,7 +25,7 @@ pub struct AxumState {
     pub experiment_status: Arc<Mutex<Option<ExperimentStatus>>>,
 
     /// List of all experiments
-    pub experiments: Arc<Mutex<Vec<Experiment>>>,
+    pub experiments: Arc<Mutex<ExperimentList>>,
 
     /// Time at which this application was started
     pub start_time: Arc<DateTime<Utc>>,

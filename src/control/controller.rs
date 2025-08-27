@@ -14,7 +14,7 @@ use crate::{axumstate::AxumState, experiment::Experiment};
 
 /// Bounds the maximum duration between consecutive setpoints / reports
 const COMMS_TIMEOUT: Duration = Duration::from_millis(2000);
-const CONTROL_LOOP_PERIOD: Duration = Duration::from_millis(1000);
+const CONTROL_LOOP_PERIOD: Duration = Duration::from_millis(100);
 
 /// High level control loop for the HHH SBC, responsible for:
 /// * Parsing received MCU reports
@@ -89,7 +89,7 @@ pub async fn control_loop(
                     ..
                 }) = current_experiment
                 {
-                    warn!("An Experiment is running: writing to DB");
+                    info!("An Experiment is running: writing to DB");
                     if is_running {
                         info!(
                             "Experiment {id} - {name} is running for {}s, writing report to DB: {:?}",

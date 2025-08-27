@@ -7,7 +7,7 @@ use tracing::*;
 use crate::communicator::MockloopCommunicator;
 
 /// Defines the frequency at which mcu communication takes place
-const COMMS_LOOP_PERIOD: Duration = Duration::from_millis(1000);
+const COMMS_LOOP_PERIOD: Duration = Duration::from_millis(100);
 /// Bounds the maximum duration between consecutive setpoints / reports
 const COMMS_TIMEOUT: Duration = Duration::from_millis(2000);
 

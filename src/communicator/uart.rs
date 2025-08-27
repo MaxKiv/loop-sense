@@ -11,7 +11,7 @@ use anyhow::Result;
 
 use crate::communicator::MockloopCommunicator;
 
-const BAUD_RATE: u32 = 115200;
+const BAUD_RATE: u32 = 921600;
 const COMMS_TIMEOUT: Duration = Duration::from_millis(2000);
 const UART_MANUFACTURER: &str = "Silicon Labs";
 
