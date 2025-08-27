@@ -55,7 +55,7 @@ pub async fn communicate_with_db(mut db_report_receiver: Receiver<ControllerRepo
                     .collect();
 
                 match db_client.query(query).await {
-                    Ok(_) => error!("Inserted Batched measurements into the DB"),
+                    Ok(_) => info!("Inserted Batched measurements into the DB"),
                     Err(err) => {
                         error!(
                             "Error inserting batched measurements into the DB: {:?} - using fallback",

@@ -1,4 +1,5 @@
 use crate::experiment::{Experiment, ExperimentStatus};
+use crate::http::messages::ExperimentList;
 use crate::{AxumState, http::messages::HeartbeatMessage, messages::frontend_messages::Report};
 use axum::Json;
 use axum::http::StatusCode;
@@ -55,7 +56,7 @@ pub async fn get_experiment_status(
 #[axum::debug_handler]
 pub async fn get_list_experiment(
     state: axum::extract::State<AxumState>,
-) -> Result<Json<Vec<Experiment>>, StatusCode> {
+) -> Result<Json<ExperimentList>, StatusCode> {
     let experiments = state.experiments.lock();
 
     if let Ok(experiments) = experiments {

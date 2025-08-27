@@ -4,6 +4,7 @@ use crate::database::db_communication_task::communicate_with_db;
 use crate::experiment::manage::manage_experiments;
 use crate::http::CONVEX_URI;
 use crate::http::get::*;
+use crate::http::messages::ExperimentList;
 use crate::http::post::*;
 use crate::messages::frontend_messages;
 use crate::micro_communication_task::communicate_with_micro;
@@ -64,7 +65,7 @@ async fn main() {
         report: Arc::new(Mutex::new(initial_report)),
         experiment_status: Arc::new(Mutex::new(initial_experiment_status)),
         experiment_watch: experiment_started_sender,
-        experiments: Arc::new(Mutex::new(Vec::new())),
+        experiments: Arc::new(Mutex::new(ExperimentList::new())),
         start_time: Arc::new(Utc::now()),
     };
 
