@@ -23,7 +23,6 @@ pub struct Report {
     pulmonary_resistance: f32,
     left_afterload_compliance: f32,
     right_afterload_compliance: f32,
-    simulation_time: f32,
     time: i64,
     experiment_id: String,          // TODO: make this tag
     experiment_name: String,        // TODO: make this tag
@@ -50,13 +49,7 @@ impl From<ControllerReport> for Report {
             pulmonary_resistance: r.mockloop_setpoint.pulmonary_resistance,
             left_afterload_compliance: r.mockloop_setpoint.systemic_afterload_compliance,
             right_afterload_compliance: r.mockloop_setpoint.pulmonary_afterload_compliance,
-            simulation_time: 0.0,
-            time: r
-                .time
-                .timestamp_nanos_opt()
-                .unwrap()
-                .try_into()
-                .unwrap_or(0i64),
+            time: r.time.timestamp_nanos_opt().unwrap_or(0i64),
             experiment_id: uuid.to_string(),
             experiment_name: r.experiment.name,
             experiment_description: r.experiment.description,
@@ -109,7 +102,6 @@ pub struct HeartControllerSetpoint {
     /// Desired regulator pressure
     pub pressure: Pressure,
     /// Ratio of systole duration to total cardiac phase duration
-    /// NOTE: usually 3/7
     pub systole_ratio: f32,
 }
 

@@ -120,7 +120,7 @@ async fn main() {
     let cors = CorsLayer::new()
         .allow_origin(CONVEX_URI.parse::<axum::http::HeaderValue>().unwrap()) // allow frontend dev server
         .allow_methods([axum::http::Method::GET, axum::http::Method::POST])
-        .allow_headers([axum::http::header::CONTENT_TYPE]);
+        .allow_headers(Any);
 
     // Set up Axum routers
     let app = Router::new()
@@ -134,9 +134,8 @@ async fn main() {
         .route("/experiment/list", post(get_list_experiment))
         .route("/experiment/start", post(post_start_experiment))
         .route("/experiment/stop", post(post_stop_experiment))
-        // Give the routers access to the application state
         .layer(cors.clone()) // Attach CORS middleware
-        .with_state(state.clone());
+        .with_state(state.clone()); // Give the routers access to the application state
 
     // Start serving webrequests
     info!("Axum Router & communication task initialised");
