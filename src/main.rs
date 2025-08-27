@@ -2,6 +2,7 @@ use crate::axumstate::AxumState;
 use crate::control::controller::control_loop;
 use crate::database::db_communication_task::communicate_with_db;
 use crate::experiment::manage::manage_experiments;
+use crate::http::CONVEX_URI;
 use crate::http::get::*;
 use crate::http::post::*;
 use crate::messages::frontend_messages;
@@ -9,11 +10,6 @@ use crate::micro_communication_task::communicate_with_micro;
 use axum::Router;
 use axum::routing::get;
 use axum::routing::post;
-use axum::{
-    Router, Server,
-    http::{Method, header},
-    routing::{get, post},
-};
 use chrono::Utc;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
@@ -120,18 +116,11 @@ async fn main() {
     // Start the DB communication task
     task::spawn(communicate_with_db(db_report_receiver));
 
-    // Configure CORS for specific origins and methods
-    let allowed_origins = AllowedOrigins::some_exact(&[
-        "http://localhost:5173".parse().unwrap(), // Common port for Vite dev server
-        "https://my-prod-frontend.com".parse().unwrap(),
-    ]);
+    // Define CORS rules
     let cors = CorsLayer::new()
-        .allow_origin(allowed_origins)
-        .allow_methods([Method::GET, Method::POST]) // Allow GET and POST
-        .allow_headers([header::CONTENT_TYPE]) // Allow Content-Type header
-        .allow_credentials(false); // Example: No credentials needed
-
-    let app = Router::new().route("/", get(get_heartbeat)).layer(cors); // Attach CORS middleware
+        .allow_origin(CONVEX_URI.parse::<axum::http::HeaderValue>().unwrap()) // allow frontend dev server
+        .allow_methods([axum::http::Method::GET, axum::http::Method::POST])
+        .allow_headers([axum::http::header::CONTENT_TYPE]);
 
     // Set up Axum routers
     let app = Router::new()
