@@ -11,7 +11,6 @@ use anyhow::Result;
 
 use crate::communicator::MockloopCommunicator;
 
-const BAUD_RATE: u32 = 921600;
 const COMMS_TIMEOUT: Duration = Duration::from_millis(2000);
 const UART_MANUFACTURER: &str = "Silicon Labs";
 
@@ -47,7 +46,7 @@ impl UartCommunicator {
             })
             // Attempt to open a serialport using the device
             .filter_map(|p| {
-                tokio_serial::new(p.port_name.clone(), BAUD_RATE)
+                tokio_serial::new(p.port_name.clone(), love_letter::BAUDRATE)
                     .flow_control(FlowControl::None)
                     .data_bits(DataBits::Eight)
                     .parity(Parity::None)
@@ -88,6 +87,7 @@ impl MockloopCommunicator for UartCommunicator {
                                 return report;
                             } else {
                                 error!("Failed to deserialize report: {:?}", bytes);
+                                bytes.clear();
                             }
                         }
                     } else {
@@ -108,12 +108,16 @@ impl MockloopCommunicator for UartCommunicator {
         let mut buf = [0u8; love_letter::SETPOINT_BYTES];
         info!("UART sending setpoint: {:?}", setpoint);
 
-        if let Err(err) = love_letter::serialize_setpoint(setpoint, &mut buf) {
-            error!("Unable to serialize setpoint: {err}");
-        }
-
-        if let Err(err) = self.uart.write(&buf).await {
-            error!("Unable to write setpoint to UART: {err}");
+        match love_letter::serialize_setpoint(setpoint, &mut buf) {
+            Err(err) => {
+                error!("Unable to serialize setpoint: {err}, skipping...");
+            }
+            Ok(used) => {
+                info!("UART sending serialised setpoint: {:?}", used);
+                if let Err(err) = self.uart.write(used).await {
+                    error!("Unable to write setpoint to UART: {err}");
+                }
+            }
         }
     }
 }

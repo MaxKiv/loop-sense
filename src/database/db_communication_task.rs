@@ -9,7 +9,7 @@ use crate::control::ControllerReport;
 use crate::database::secrets::*;
 use crate::messages::db_messages::DatabaseRecord;
 
-const DB_LOOP_PERIOD: Duration = Duration::from_millis(1000);
+const DB_LOOP_PERIOD: Duration = Duration::from_millis(10);
 const QUERY_BATCH_LEN: usize = 10;
 
 #[derive(Debug)]
