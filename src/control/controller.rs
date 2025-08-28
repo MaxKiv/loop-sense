@@ -14,7 +14,7 @@ use crate::{axumstate::AxumState, experiment::Experiment};
 
 /// Bounds the maximum duration between consecutive setpoints / reports
 const COMMS_TIMEOUT: Duration = Duration::from_millis(2000);
-const CONTROL_LOOP_PERIOD: Duration = Duration::from_millis(100);
+const CONTROL_LOOP_PERIOD: Duration = Duration::from_millis(10);
 
 /// High level control loop for the HHH SBC, responsible for:
 /// * Parsing received MCU reports
