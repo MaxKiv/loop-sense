@@ -19,8 +19,8 @@ tokio = { version = "1.45.1", features = ["full"] }
 tracing = "0.1.41"
 tracing-subscriber = "0.3.19"
 uom = { version = "0.37.0", features = ["serde"] }
-love-letter = { path = "../love-letter" }
-# love-letter = { git = "ssh://git@bitbucket.org/mechatronica/love_letter.git" }
+# love-letter = { path = "../love-letter" }
+love-letter = { git = "ssh://git@bitbucket.org/mechatronica/love_letter.git" }
 tokio-serial = "5.4.5"
 uuid = { version = "1.18.0", features = ["serde", "v4"] }
 tower-http = { version = "0.6.6", features = ["cors"] }

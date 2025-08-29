@@ -26,9 +26,10 @@
     ...
   } @ inputs: let
     # Function to build our rust application for a given target architecture
-    buildForTarget = system: target: features: let
-      pkgs = import nixpkgs {inherit system;};
-      toolchain = with fenix.packages.${system};
+    buildForTarget = localSystem: targetSystem: features: let
+      pkgs = import nixpkgs {system = localSystem;};
+      pkgsCross = import nixpkgs { system = targetSystem; };
+      toolchain = with fenix.packages.${localSystem};
         fromToolchainFile {
           file = ./rust-toolchain.toml;
           sha256 = "sha256-+9FmLhAOezBZCOziO0Qct1NOrfpjNsXxc/8I0c7BdKE=";
@@ -46,10 +47,10 @@
         strictDeps = true;
         doCheck = false;
         cargoExtraArgs = "--locked --features=" + features;
-        CARGO_BUILD_TARGET = target;
-        TARGET_CC = "${pkgs.stdenv.cc}/bin/${pkgs.stdenv.cc.targetPrefix}cc";
+        CARGO_BUILD_TARGET = targetSystem;
+        TARGET_CC = "${pkgsCross.stdenv.cc.targetPrefix}cc";
 
-        env = pkgs.lib.optionalAttrs (target == "x86_64-pc-windows-msvc") {
+        env = pkgs.lib.optionalAttrs (targetSystem == "x86_64-pc-windows-msvc") {
           ZIG_GLOBAL_CACHE_DIR = "$TMPDIR/.zig-cache";
           XDG_CACHE_HOME = "$TMPDIR/.zig-cache";
           CC = "${pkgs.zig}/bin/zig cc";
@@ -65,7 +66,7 @@
         OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include/";
 
         depsBuildBuild = with pkgs;
-          lib.optionals (target == "x86_64-pc-windows-gnu") [
+          lib.optionals (targetSystem == "x86_64-pc-windows-gnu") [
             pkgsCross.mingwW64.stdenv.cc
             pkgsCross.mingwW64.windows.pthreads
           ];
@@ -75,7 +76,7 @@
             find . -name "pregenerated" -type d -exec rm -rf {} + 2>/dev/null || true
           ''
           + (
-            if target == "x86_64-pc-windows-msvc"
+            if targetSystem == "x86_64-pc-windows-msvc"
             then ''
               mkdir -p $TMPDIR/.zig-cache
               chmod 755 $TMPDIR/.zig-cache
@@ -84,18 +85,19 @@
           );
       };
   in
-    flake-utils.lib.eachDefaultSystem (system:
+    flake-utils.lib.eachDefaultSystem (localSystem:
       # Dev shells and packages for each supported system
       let
-        pkgs = import nixpkgs {inherit system;};
-        toolchain = with fenix.packages.${system};
+        pkgs = import nixpkgs {system = localSystem;};
+        toolchain = with fenix.packages.${localSystem};
           fromToolchainFile {
             file = ./rust-toolchain.toml;
             sha256 = "sha256-+9FmLhAOezBZCOziO0Qct1NOrfpjNsXxc/8I0c7BdKE=";
           };
       in {
         packages = {
-          default = buildForTarget system "x86_64-unknown-linux-gnu" "sim";
+          default = buildForTarget localSystem "x86_64-unknown-linux-gnu" "";
+          rpi3 = buildForTarget localSystem "aarch64-unknown-linux-gnu" "";
         };
 
         devShells = {
