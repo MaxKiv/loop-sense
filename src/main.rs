@@ -69,29 +69,8 @@ async fn main() {
         start_time: Arc::new(Utc::now()),
     };
 
-    #[cfg(feature = "sim-mcu")]
-    let (communicator, receiver) = PassThroughCommunicator::new_with_receiver();
-    #[cfg(not(feature = "sim-mcu"))]
-    // Spin until uart connection is established
-    let mcu_communicator = loop {
-        use crate::communicator::uart::UartCommunicator;
-        const UART_RETRY_DURATION: Duration = Duration::from_millis(500);
-
-        match UartCommunicator::try_new() {
-            Ok(c) => break c,
-            Err(err) => {
-                error!(
-                    "Unable to open uart communicator: {err}, retrying in {}ms",
-                    UART_RETRY_DURATION.as_millis()
-                );
-                time::sleep(UART_RETRY_DURATION).await;
-            }
-        }
-    };
-
     // Delegate all microcontroller communication to a separate tokio task
     task::spawn(communicate_with_micro(
-        mcu_communicator,
         mcu_setpoint_receiver,
         mcu_report_sender,
     ));
