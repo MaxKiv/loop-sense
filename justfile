@@ -27,7 +27,7 @@ rpi-ssh-switch:
 
 # Build rpi3 image, copy to rpi3 and switch system
 rpi-switch:
-    nixos-rebuild switch --flake .#rpi3 --target-host root@192.168.0.2  --use-remote-sudo --build-host localhost --verbose --show-trace
+    nixos-rebuild switch --flake .#rpi3 --target-host root@192.168.0.2  --sudo --build-host localhost --verbose --show-trace
 
 ### Debug commands ###
 

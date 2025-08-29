@@ -10,6 +10,7 @@
 }: {
   # Default system packages
   environment.systemPackages = with pkgs; [
+    git
     duf
     neovim
     wget
