@@ -11,6 +11,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     crane.url = "github:ipetkov/crane";
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     # NixOS inputs
     nixos-hardware.url = "github:nixos/nixos-hardware/master";
@@ -20,101 +24,179 @@
   outputs = {
     self,
     nixpkgs,
-    flake-utils,
-    fenix,
     crane,
+    fenix,
+    flake-utils,
+    rust-overlay,
     ...
-  } @ inputs: let
-    # Function to build our rust application for a given target architecture
-    buildForTarget = localSystem: targetSystem: features: let
-      pkgs = import nixpkgs {system = localSystem;};
-      pkgsCross = import nixpkgs { system = targetSystem; };
-      toolchain = with fenix.packages.${localSystem};
-        fromToolchainFile {
-          file = ./rust-toolchain.toml;
-          sha256 = "sha256-+9FmLhAOezBZCOziO0Qct1NOrfpjNsXxc/8I0c7BdKE=";
-        };
-      craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
-    in
-      craneLib.buildPackage {
-        src = pkgs.lib.cleanSourceWith {
-          src = ./.;
-          filter = path: type:
-            !pkgs.lib.hasSuffix "target" path
-            && !pkgs.lib.hasInfix "/.git/" path;
+  } @ inputs:
+    flake-utils.lib.eachDefaultSystem (system: let
+      # Define cross compilation targets
+      targets = [
+        "x86_64-unknown-linux-gnu"
+        "x86_64-unknown-linux-musl"
+        "aarch64-unknown-linux-gnu"
+        "aarch64-unknown-linux-musl"
+      ];
+
+      overlays = [(import rust-overlay)];
+
+      # Function to get pkgs for a given host & target
+      pkgsFor = {
+        localSystem,
+        target ? null,
+      }: let
+        crossSystem =
+          if lib.hasSuffix "musl" target
+          then {
+            config = target;
+            isStatic = true;
+          }
+          else {config = target;};
+      in
+        import nixpkgs ({
+            inherit localSystem overlays;
+          }
+          // (
+            if target != null
+            then {inherit crossSystem;}
+            else {}
+          ));
+
+      # Function to get a rust toolchain usable for all cross compilation targets for a given pkgs
+      rustForTarget = pkgs:
+        pkgs.rust-bin.stable.latest.default.override {
+          targets = targets;
         };
 
+      # Base pkgs for the host system
+      pkgsHost = pkgsFor {localSystem = system;};
+      inherit (pkgsHost) lib;
+
+      # Collect all the source files that need to be compiled
+      src = lib.cleanSourceWith {
+        src = (crane.mkLib pkgsHost).path ./.;
+      };
+
+      # Common build args
+      commonArgs = {
+        inherit src;
         strictDeps = true;
-        doCheck = false;
-        cargoExtraArgs = "--locked --features=" + features;
-        CARGO_BUILD_TARGET = targetSystem;
-        TARGET_CC = "${pkgsCross.stdenv.cc.targetPrefix}cc";
 
-        env = pkgs.lib.optionalAttrs (targetSystem == "x86_64-pc-windows-msvc") {
-          ZIG_GLOBAL_CACHE_DIR = "$TMPDIR/.zig-cache";
-          XDG_CACHE_HOME = "$TMPDIR/.zig-cache";
-          CC = "${pkgs.zig}/bin/zig cc";
-          AR = "${pkgs.zig}/bin/zig ar";
-          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER = "${pkgs.zig}/bin/zig cc";
-          CC_x86_64_pc_windows_msvc = "${pkgs.zig}/bin/zig cc -target x86_64-windows-msvc";
-          AR_x86_64_pc_windows_msvc = "${pkgs.zig}/bin/zig ar";
-          RING_PREGENERATE_ASM = "1";
-        };
-
-        OPENSSL_DIR = "${pkgs.openssl.dev}";
-        OPENSSL_LIB_DIR = "${pkgs.openssl.out}/lib";
-        OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include/";
-
-        depsBuildBuild = with pkgs;
-          lib.optionals (targetSystem == "x86_64-pc-windows-gnu") [
-            pkgsCross.mingwW64.stdenv.cc
-            pkgsCross.mingwW64.windows.pthreads
+        nativeBuildInputs =
+          [
+            # pkgs.cmake
+            # pkgs.nodejs_24
+          ]
+          ++ lib.optionals pkgsHost.stdenv.isLinux [
+            pkgsHost.pkg-config
+            # pkgs.rustPlatform.bindgenHook
           ];
 
-        preBuild =
-          ''
-            find . -name "pregenerated" -type d -exec rm -rf {} + 2>/dev/null || true
-          ''
-          + (
-            if targetSystem == "x86_64-pc-windows-msvc"
-            then ''
-              mkdir -p $TMPDIR/.zig-cache
-              chmod 755 $TMPDIR/.zig-cache
-            ''
-            else ""
-          );
+        buildInputs = [
+          # pkgs.cargo-nextest
+          # pkgs.openssl.dev
+          # ]
+          # ++ lib.optional pkgs.stdenv.isDarwin [
+          #   pkgs.libiconv
+          #   pkgs.iconv
+          #   pkgs.cacert
+          #   pkgs.curl
+        ];
+
+        LIBCLANG_PATH = "${pkgsHost.llvmPackages.libclang.lib}/lib";
       };
-  in
-    flake-utils.lib.eachDefaultSystem (localSystem:
-      # Dev shells and packages for each supported system
-      let
-        pkgs = import nixpkgs {system = localSystem;};
-        toolchain = with fenix.packages.${localSystem};
-          fromToolchainFile {
-            file = ./rust-toolchain.toml;
-            sha256 = "sha256-+9FmLhAOezBZCOziO0Qct1NOrfpjNsXxc/8I0c7BdKE=";
-          };
-      in {
-        packages = {
-          default = buildForTarget localSystem "x86_64-unknown-linux-gnu" "";
-          rpi3 = buildForTarget localSystem "aarch64-unknown-linux-gnu" "";
+
+      # Standard cargo artifacts for the host system
+      baseCraneLib = (crane.mkLib pkgsHost).overrideToolchain (_: rustForTarget pkgsHost);
+      cargoArtifacts = baseCraneLib.buildDepsOnly commonArgs;
+
+      # Function to create a package for a specific target
+      makePackage = target: let
+        crossPkgs = pkgsFor {
+          localSystem = system;
+          inherit target;
         };
 
-        devShells = {
-          default = pkgs.mkShell {
-            LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [pkgs.stdenv.cc.cc];
-            RUST_BACKTRACE = "full";
-            buildInputs = with pkgs; [
-              zig_0_13
-              nil
-              alejandra
-              toolchain
-              rust-analyzer
-              cargo-xwin
-              influxdb3
-              git-lfs
-            ];
+        # Use the buildPackages toolchain for cross builds!
+        craneLib = (crane.mkLib crossPkgs).overrideToolchain (_: rustForTarget crossPkgs.buildPackages);
+
+        targetArgs =
+          commonArgs
+          // {
+            inherit cargoArtifacts;
+            doCheck = false;
+
+            # Set rust target
+            CARGO_BUILD_TARGET = target;
+
+            # Set build inputs
+            buildInputs =
+              commonArgs.buildInputs;
+
+            CARGO_BUILD_RUSTFLAGS = "-C target-feature=+crt-static";
           };
+      in
+        craneLib.buildPackage targetArgs;
+
+      # Build package for each target
+      packages = builtins.listToAttrs (
+        map
+        (target: {
+          name = builtins.replaceStrings ["-"] ["_"] target;
+          value = makePackage target;
+        })
+        targets
+      );
+
+      hostPackage = baseCraneLib.buildPackage (commonArgs
+        // {
+          inherit cargoArtifacts;
+          doCheck = false;
+        });
+    in
+      with pkgsHost; {
+        packages =
+          packages
+          // {
+            default = hostPackage;
+          };
+
+        devShells = {
+          # default = pkgsLocal.mkShell {
+          #   LD_LIBRARY_PATH = pkgsLocal.lib.makeLibraryPath [pkgsLocal.stdenv.cc.cc];
+          #   RUST_BACKTRACE = "full";
+          #   buildInputs = with pkgsLocal; [
+          #     nil
+          #     alejandra
+          #     toolchain
+          #     rust-analyzer
+          #     influxdb3
+          #     git-lfs
+          #   ];
+          # };
+          default = baseCraneLib.devShell (commonArgs
+            // {
+              inputsFrom = [hostPackage];
+              shellHook = ''
+                echo "HHH Development Environment"
+                echo "==========================="
+                echo "Rust version: $(rustc --version)"
+                echo "Cargo version: $(cargo --version)"
+                alias c=cargo
+                alias j=just
+                alias nv=nvim
+                alias n=nvim
+                alias cr="cargo run"
+                alias cb="cargo build"
+                alias gs="git status"
+                alias gp="git push"
+                alias gpf="git push --force-with-lease"
+                alias ga="git add ."
+                export DYLD_LIBRARY_PATH="$(rustc --print sysroot)/lib:$DYLD_LIBRARY_PATH"
+                export RUST_SRC_PATH="$(rustc --print sysroot)/lib/rustlib/src/rust/src"
+              '';
+            });
         };
       })
     // {
