@@ -17,4 +17,12 @@
       prefixLength = 24;
     }
   ];
+
+  networking.firewall = {
+    enable = true;
+    checkReversePath = false;
+    allowedTCPPorts = [8000 8086];
+    allowedUDPPorts = [8000 8086];
+  };
+
 }
