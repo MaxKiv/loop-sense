@@ -1,12 +1,131 @@
 <img src="./data/loop-sense-header.png" alt="loop-sense" width="400"/>
 
-# API endpoints and structure definitions
+# Loop-Sense HHH mockloop backend software
+
+A high-level control and data acquisition application for the HHH mockloop, designed to run on a Raspberry Pi embedded system within the mockloop control box.
+
+## About the Holland Hybrid Heart Project
+
+The [Holland Hybrid Heart](https://hollandhybridheart.nl/) project aims to develop a biocompatible artificial heart using soft robotics and tissue engineering. This innovative artificial heart is designed to help heart failure patients by improving life expectancy and quality of life. It reduces the dependency on donor hearts, addressing the shortage of available donor organs and improving patient outcomes.
+
+## What is a Mockloop?
+
+A mockloop (also called a mock circulatory loop) is a physical simulator that replicates the human cardiovascular system for testing cardiac devices. It consists of:
+
+- **Pumps** that simulate heart ventricles
+- **Pressure chambers** representing different parts of the circulatory system
+- **Flow sensors** and **pressure sensors** for monitoring
+- **Controllable resistances** to simulate blood vessel properties
+- **Compliance chambers** to mimic arterial elasticity
+
+Mockloops are essential for:
+
+- Testing artificial hearts and ventricular assist devices
+- Validating control algorithms in a controlled environment
+- Collecting performance data before animal or clinical trials
+- Training medical professionals on the artificial heart device operation
+
+## Overview
+
+Loop-sense serves as the bridge between the web-based frontend interface and the low-level microcontroller hardware. It receives control setpoints from the frontend via HTTP API, forwards them to the microcontroller over UART, and exposes sensor measurements and system status back to the frontend.
+
+**Key responsibilities:**
+
+- **Control Interface**: Receives setpoints from web frontend and forwards them to the microcontroller
+- **Data Acquisition**: Collects measurement reports from the microcontroller and serves them via HTTP endpoints
+- **Experiment Management**: Handles experiment lifecycle (start/stop) and logs data to InfluxDB
+- **System Monitoring**: Provides heartbeat and status endpoints for system health monitoring
+
+## Architecture
+
+The application is built using **Rust** with the **Tokio** async runtime, designed around a multi-task architecture where each major function runs in its own async task with structured communication channels between them.
+
+<img src="./data/mockloop_architecture.svg" alt="Mockloop Architecture" width="800"/>
+
+### Main Application Flow
+
+The `main()` function serves as the orchestrator:
+
+1. **Initialize logging** using the `tracing` crate
+2. **Create inter-task communication channels** (mpsc/watch channels)
+3. **Initialize shared application state** wrapped in Arc<Mutex<>>
+4. **Spawn async tasks** for each major subsystem
+5. **Start HTTP server** using Axum web framework
+
+### Core Tasks
+
+- **`micro_communication_task`**: Handles all UART communication with the microcontroller. Sends setpoints and receives measurement reports at 100Hz
+- **`control_loop`**: High-level control logic that processes MCU reports, updates application state, and coordinates between frontend and hardware
+- **`manage_experiments`**: Manages experiment lifecycle, generates UUIDs for new experiments, and coordinates data logging
+- **`communicate_with_db`**: Batches and writes measurement data to InfluxDB when experiments are running
+- **HTTP handlers**: Axum-based REST API serving measurement data and accepting control commands
+
+### Key Libraries
+
+- **`tokio`**: Async runtime providing the task scheduler, I/O primitives, and communication channels
+- **`axum`**: Modern web framework for the HTTP API, with built-in JSON serialization and routing
+- **`tokio-serial`**: Async UART communication with the microcontroller
+- **`influxdb`**: Time-series database client for logging experimental data
+- **`love-letter`**: Shared library crate defining the communication protocol between this application and the microcontroller
+  - Uses **UART + COBS encoding** for reliable framing over serial
+  - Uses **postcard** for efficient binary serialization/deserialization of structured data
+
+## Development Setup
+
+This project uses **Nix** for reproducible development environments and cross-compilation toolchains.
+
+### Installing Nix
+
+**Linux/macOS:**
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+**Windows:**
+Install via the [official installer](https://nixos.org/download.html#nix-install-windows) or use Windows Subsystem for Linux (WSL).
+
+### Development Workflow
+
+1. **Enter the development shell:**
+
+   ```bash
+   nix develop
+   ```
+
+   This automatically sets up the Rust toolchain, cross-compilation targets, and all dependencies.
+
+2. **Build the project:**
+
+   ```bash
+   cargo build
+   ```
+
+3. **Run with simulation features (for development without hardware):**
+
+   ```bash
+   cargo run --features sim-mcu
+   ```
+
+4. **Cross-compile for Raspberry Pi:**
+   ```bash
+   cargo build --target aarch64-unknown-linux-musl --release
+   ```
+
+### Build Features
+
+- `sim-mcu`: Replaces UART communication with a simulator for development
+- `sim-frontend`: Enables additional simulation features for testing without a frontend
+
+The Nix flake also provides several build targets accessible via `nix build .#{target}` for various cross-compilation scenarios.
+
+## API endpoints and structure definitions
 
 A list of HTTP endpoints are exposed by the application, note that all GET/POST
 endpoints expect a JSON-serialized structure following the precise definition
 given below.
 
-## GET Endpoints
+### GET Endpoints
 
 `"/heartbeat"`
 Returns a heartbeat message, useful to check if & for how long the server is
@@ -61,7 +180,7 @@ pub struct ExperimentStatus {
 }
 ```
 
-## POST Endpoints
+### POST Endpoints
 
 `"/control/loop"`
 Change the setpoints for the mockloop hemodynamics controller, this complete
@@ -119,69 +238,3 @@ pub struct ExperimentStartMessage {
 
 `"/experiment/stop"`
 Stop the current experiment, no structure has to be provided.
-
-# loop-sense
-
-A data acquisition and control application for the Holland Hybrid Heart mockloop
-designed to run on a SBC (e.g. Raspberry pi 3/4/5).
-It interfaces with a microcontroller/PLC via EtherCAT, logs sensor data and
-mockloop state to InfluxDB3 and hosts a web interface for monitoring.
-
-<img src="./data/mockloop_architecture.svg" alt="Mockloop Architecture" width="800"/>
-
-# Architecture
-
-<img src="./data/loop-sense.svg" alt="Mockloop Architecture" width="800"/>
-
-# Features
-
-- Modular Async Rust using the [Tokio] executor.
-- Designed to work with [Influxdb3], a time-series optimized DB.
-- Structured logging via [Tracing], optionally exported to InfluxDB3.
-- Uses the [Axum] web framework.
-- Optional: High-frequency mockloop data acquisition and control via DAQ/NIDAQ
-  (Replacing the PLC).
-
-# Building
-
-First install [Rust].
-
-To build this application you must first obtain a rust toolchain.
-[Rustup] is the default Rust toolchain manager, on unix & MacOS install it using `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`.
-If you are on windows [refer here](https://forge.rust-lang.org/infra/other-installation-methods.html).
-
-If you use nix, running `nix develop` will set up the Rust toolchain and other
-dependencies like [Influxdb3] (tip: use [Direnv] to automate this).
-
-You can now build as any [Cargo] project (e.g. `cargo build`), [Rustup] will
-pull the required toolchain on first build. Don't forget to look at the
-features below to enable/disable certain optional parts.
-
-The nix flake also exposes some build targets available through `nix build
-.#{target}`.
-
-## Build features
-
-To optionally enable/disable certain logic Rust uses features, these are similar
-to C/C++ Defines. Loop-sense can be build with following features:
-
-| Feature      | Description                                                              |
-| ------------ | ------------------------------------------------------------------------ |
-| sim-mcu      | Enable Simulation of microcontroller, useful for development and testing |
-| sim-frontend | Enable Simulation of the backend, useful for development and testing     |
-
-# TODO
-
-- [x] Remove nidaq cruft
-- [ ] implement hydraulic resistance/compliance uom quantities
-- [ ] str& instead of String everywhere
-- [ ] tidy up public/private access
-
-[Tokio]: https://crates.io/crates/tokio
-[Tracing]: https://crates.io/crates/tracing
-[Influxdb3]: https://github.com/influxdata/influxdb
-[Axum]: https://crates.io/crates/axum
-[Direnv]: https://direnv.net/
-[Rustup]: https://www.rust-lang.org/tools/install
-[Cargo]: https://doc.rust-lang.org/cargo/
-[Rust]: https://www.rust-lang.org/
