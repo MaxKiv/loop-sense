@@ -14,7 +14,7 @@ docker-run-db:
 
 # Manual rpi3 system image build command
 rpi-build:
-    nix build .#nixosConfigurations.aarch64-linux.rpi3.config.system.build.toplevel --print-out-paths
+    nix build .#nixosConfigurations.rpi3.config.system.build.toplevel --print-out-paths
 
 # Manual rpi3 system image copy command
 rpi-copy:
@@ -27,8 +27,25 @@ rpi-ssh-switch:
 
 # Build rpi3 image, copy to rpi3 and switch system
 rpi-switch:
-    nixos-rebuild switch --flake .#rpi3 --target-host root@192.168.0.2  --sudo --build-host localhost --verbose --show-trace
+    nix run nixpkgs#nixos-rebuild -- switch --flake .#rpi3 --target-host root@192.168.0.2 --verbose --show-trace
 
+# Manual rpi4 system image build command
+rpi4-build:
+    nix build .#nixosConfigurations.rpi4.config.system.build.toplevel --print-out-paths
+
+# Manual rpi4 system image copy command
+rpi4-copy:
+    nix copy [store-path-from-rpi4-build] --to ssh://root@192.168.0.4
+
+# Manual rpi4 system image copy command 2
+rpi4-ssh-switch:
+    ssh -v root@192.168.0.4
+    nixos-install --root / --system [store-path-from-rpi4-build]
+
+# Build rpi4 image, copy to rpi4 and switch system
+rpi4-switch:
+    nix run nixpkgs#nixos-rebuild -- switch --flake .#rpi4 --target-host root@192.168.0.4 --verbose --show-trace
+    
 ### Debug commands ###
 
 # send a test controller setpoint using curl
@@ -63,4 +80,8 @@ tables-db:
 
 # SSH into rpi3
 ssh:
-    ssh -v root@192.168.0.2
+    ssh -v root@192.168.0.3
+
+# SSH into rpi4
+ssh4:
+    ssh -v root@192.168.0.4

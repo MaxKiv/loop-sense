@@ -121,6 +121,9 @@
         # Use the buildPackages toolchain for cross builds!
         craneLib = (crane.mkLib crossPkgs).overrideToolchain (_: rustForTarget crossPkgs.buildPackages);
 
+        # Only use static linking for musl targets
+        isMusl = lib.hasSuffix "musl" target;
+
         targetArgs =
           commonArgs
           // {
@@ -134,7 +137,8 @@
             buildInputs =
               commonArgs.buildInputs;
 
-            CARGO_BUILD_RUSTFLAGS = "-C target-feature=+crt-static";
+            # Only enable static CRT for musl targets
+            CARGO_BUILD_RUSTFLAGS = lib.optionalString isMusl "-C target-feature=+crt-static";
           };
       in
         craneLib.buildPackage targetArgs;
@@ -210,10 +214,29 @@
           composePath = ./compose.yaml;
           snapshotPath = ./snapshot;
           resourcePath = ./nixos/resources;
+          loopSensePackage = self.packages.aarch64-linux.aarch64_unknown_linux_gnu;
           inherit inputs;
         };
         modules = [
           ./nixos/rpi3
+        ];
+      };
+
+      # NixOS configuration for rpi4
+      nixosConfigurations.rpi4 = nixpkgs.lib.nixosSystem {
+        system = "aarch64-linux";
+        specialArgs = {
+          hostname = "rpi4";
+          username = "max";
+          sshPublicKeys = import ./nixos/resources/ssh_public_keys.nix;
+          composePath = ./compose.yaml;
+          snapshotPath = ./snapshot;
+          resourcePath = ./nixos/resources;
+          loopSensePackage = self.packages.aarch64-linux.aarch64_unknown_linux_gnu;
+          inherit inputs;
+        };
+        modules = [
+          ./nixos/rpi4
         ];
       };
     };

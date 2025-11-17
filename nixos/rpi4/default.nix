@@ -1,4 +1,5 @@
 # https://www.eisfunke.com/posts/2023/nixos-on-raspberry-pi.html
+# https://nixos.wiki/wiki/NixOS_on_ARM/Raspberry_Pi_4
 {
   inputs,
   config,
@@ -10,7 +11,7 @@
   ...
 }: {
   imports = [
-    inputs.nixos-hardware.nixosModules.raspberry-pi-3
+    inputs.nixos-hardware.nixosModules.raspberry-pi-4
     ./network.nix
     ./user.nix
     ./pkgs.nix
@@ -28,6 +29,18 @@
 
   hardware.enableRedistributableFirmware = true;
 
+  # Raspberry Pi 4 specific hardware configuration
+  hardware = {
+    raspberry-pi."4".apply-overlays-dtmerge.enable = true;
+    deviceTree = {
+      enable = true;
+      filter = "*rpi-4-*.dtb";
+    };
+  };
+
+  # Disable console for headless operation (optional, can be enabled if needed)
+  # console.enable = false;
+
   boot.initrd.availableKernelModules = ["usbhid"];
 
   fileSystems."/" = {
@@ -42,5 +55,12 @@
     }
   ];
 
+  # Additional Raspberry Pi utilities
+  environment.systemPackages = with pkgs; [
+    libraspberrypi
+    raspberrypi-eeprom
+  ];
+
   system.stateVersion = "25.05";
 }
+

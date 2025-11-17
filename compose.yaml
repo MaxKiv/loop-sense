@@ -6,8 +6,9 @@ name: "Influxdb3 container and initialization for Holland Hybrid Heart"
 services:
 
   init-db-volume: # Provision the DB AUTH tokens and default tables by recovering the docker volume used by influxdb3
-    image: alpine@sha256:de0eb0b3f2a47ba1eb89389859a9bd88b28e82f5826b6969ad604979713c2d4f
+    image: alpine:3.21.0
     container_name: init-db-volume
+    pull_policy: never  # Don't pull, use pre-loaded images
     volumes:
       - influxdb3_data:/data
       - ./snapshot/influxdb3-data.tar.gz:/backup/influxdb3-data.tar.gz:ro
@@ -16,8 +17,9 @@ services:
     restart: "no"
 
   db: # Container running InfluxDB3, a time series optimized database
-    image: influxdb@sha256:c8a97fa106aef068619ed0f809be49b757060eae65830e230e9e0d2304f94182
+    image: influxdb:latest
     container_name: db
+    pull_policy: never  # Don't pull, use pre-loaded images
     depends_on:
       init-db-volume:
         condition: service_completed_successfully
