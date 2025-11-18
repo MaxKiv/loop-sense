@@ -107,6 +107,7 @@ async fn main() {
         .route("/measurements", get(get_measurements))
         .route("/experiment/status", get(get_experiment_status))
         .route("/experiment/list", get(get_list_experiments_from_db))
+        .route("/experiment/download/{table_name}", get(download_experiment_csv))
         // POST endpoints
         .route("/control/loop", post(post_loop_setpoint))
         .route("/control/heart", post(post_heart_setpoint))
