@@ -1,4 +1,4 @@
-use crate::experiment::{Experiment, ExperimentStatus};
+use crate::experiment::ExperimentStatus;
 use crate::http::messages::ExperimentList;
 use crate::{AxumState, http::messages::HeartbeatMessage, messages::frontend_messages::Report};
 use axum::Json;
@@ -40,7 +40,7 @@ pub async fn get_heartbeat(_state: axum::extract::State<AxumState>) -> Json<Hear
 pub async fn get_experiment_status(
     state: axum::extract::State<AxumState>,
 ) -> Result<Json<ExperimentStatus>, StatusCode> {
-    if let Ok(status) = state.0.experiment_status.lock() {
+    if let Ok(status) = state.experiment_status.lock() {
         if let Some(status) = status.clone() {
             Ok(Json(status.clone()))
         } else {

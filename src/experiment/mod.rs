@@ -26,6 +26,20 @@ pub struct ExperimentStatus {
     duration_seconds: Duration,
 }
 
+impl From<&Experiment> for ExperimentStatus {
+    fn from(exp: &Experiment) -> Self {
+        Self {
+            is_running: exp.is_running,
+            experiment_id: exp.id,
+            experiment_name: exp.name.clone(),
+            description: exp.description.clone(),
+            table_name: exp.table_name.clone(),
+            start_time: exp.start_time,
+            duration_seconds: exp.duration_seconds,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ExperimentStartMessage {
     name: String,

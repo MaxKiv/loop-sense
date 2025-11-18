@@ -40,6 +40,13 @@ pub async fn control_loop(
             // Ask the experiment manager for the current experiment status
             info!("Experiment change detected");
             current_experiment = (*experiment_receiver.borrow_and_update()).clone();
+            
+            // Update the experiment status in AxumState for the GET /experiment/status endpoint
+            if let Ok(mut status) = axum_state.experiment_status.lock() {
+                *status = current_experiment.as_ref().map(|exp| exp.into());
+            } else {
+                error!("Failed to update experiment status in AxumState");
+            }
         }
 
         // Check for new setpoint from frontend
