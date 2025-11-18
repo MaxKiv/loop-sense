@@ -229,9 +229,7 @@
           hostname = "rpi4";
           username = "max";
           sshPublicKeys = import ./nixos/resources/ssh_public_keys.nix;
-          composePath = ./compose.yaml;
-          snapshotPath = ./snapshot;
-          resourcePath = ./nixos/resources;
+          composePath = ./nixos/rpi4/compose.yaml;
           loopSensePackage = self.packages.aarch64-linux.aarch64_unknown_linux_gnu;
           inherit inputs;
         };

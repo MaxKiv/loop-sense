@@ -11,30 +11,12 @@
   resourcePath,
   ...
 }: {
-  # Copy docker image archive to the system
-  environment.etc."influxdb-stack/influxdb-images.tar".source = "${resourcePath}/influxdb-images.tar";
-
-  # Systemd unit to load docker images at boot before compose up
-  systemd.services.docker-load-images = {
-    description = "Load Docker images for InfluxDB stack";
-    after = ["docker.service"];
-    requires = ["docker.service"];
-    before = ["influxdb-stack.service"];
-    wantedBy = ["multi-user.target"];
-
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-      ExecStart = "${pkgs.docker}/bin/docker load -i /etc/influxdb-stack/influxdb-images.tar";
-    };
-  };
-
   # Systemd unit to autorun docker compose on pi startup
   systemd.services.influxdb-stack = {
     description = "InfluxDB3 stack via Docker Compose";
     after = ["network-online.target" "docker.service"];
     wants = ["network-online.target"];
-    requires = ["docker.service" "docker-load-images.service"];
+    requires = ["docker.service"];
     bindsTo = ["docker.service"];
     wantedBy = ["multi-user.target"];
 

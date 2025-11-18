@@ -17,7 +17,7 @@ services:
     restart: "no"
 
   db: # Container running InfluxDB3, a time series optimized database
-    image: influxdb:latest
+    image: influxdb:3-core
     container_name: db
     pull_policy: never  # Don't pull, use pre-loaded images
     depends_on:
