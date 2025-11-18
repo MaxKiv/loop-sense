@@ -23,11 +23,18 @@ pub struct ExperimentStatus {
     description: String,
     table_name: String,
     start_time: DateTime<Utc>,
-    duration_seconds: Duration,
+    duration_seconds: i64,
 }
 
 impl From<&Experiment> for ExperimentStatus {
     fn from(exp: &Experiment) -> Self {
+        // Calculate duration dynamically based on current time
+        let duration = if exp.is_running {
+            Utc::now().signed_duration_since(exp.start_time)
+        } else {
+            exp.duration_seconds
+        };
+        
         Self {
             is_running: exp.is_running,
             experiment_id: exp.id,
@@ -35,7 +42,7 @@ impl From<&Experiment> for ExperimentStatus {
             description: exp.description.clone(),
             table_name: exp.table_name.clone(),
             start_time: exp.start_time,
-            duration_seconds: exp.duration_seconds,
+            duration_seconds: duration.num_seconds(),
         }
     }
 }

@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use tokio::sync::watch::Sender;
 
 use crate::{
-    experiment::{Experiment, ExperimentStartMessage, ExperimentStatus},
+    experiment::{Experiment, ExperimentStartMessage},
     http::messages::ExperimentList,
     messages::frontend_messages,
 };
@@ -21,8 +21,8 @@ pub struct AxumState {
     /// Notifies changes to the current experiment from the frontend experiment manager
     pub experiment_watch: Sender<Option<ExperimentStartMessage>>,
 
-    /// Status of the currently running experiment
-    pub experiment_status: Arc<Mutex<Option<ExperimentStatus>>>,
+    /// Currently running experiment (stored to calculate duration dynamically)
+    pub current_experiment: Arc<Mutex<Option<Experiment>>>,
 
     /// List of all experiments
     pub experiments: Arc<Mutex<ExperimentList>>,

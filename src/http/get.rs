@@ -40,14 +40,16 @@ pub async fn get_heartbeat(_state: axum::extract::State<AxumState>) -> Json<Hear
 pub async fn get_experiment_status(
     state: axum::extract::State<AxumState>,
 ) -> Result<Json<ExperimentStatus>, StatusCode> {
-    if let Ok(status) = state.experiment_status.lock() {
-        if let Some(status) = status.clone() {
-            Ok(Json(status.clone()))
+    if let Ok(experiment) = state.current_experiment.lock() {
+        if let Some(ref exp) = *experiment {
+            // Convert to ExperimentStatus on-the-fly to get fresh duration calculation
+            let status: ExperimentStatus = exp.into();
+            Ok(Json(status))
         } else {
             Err(StatusCode::NO_CONTENT)
         }
     } else {
-        error!("Unable to fetch the current experiment status");
+        error!("Unable to fetch the current experiment");
         Err(StatusCode::INTERNAL_SERVER_ERROR)
     }
 }

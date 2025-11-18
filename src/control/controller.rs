@@ -41,11 +41,11 @@ pub async fn control_loop(
             info!("Experiment change detected");
             current_experiment = (*experiment_receiver.borrow_and_update()).clone();
             
-            // Update the experiment status in AxumState for the GET /experiment/status endpoint
-            if let Ok(mut status) = axum_state.experiment_status.lock() {
-                *status = current_experiment.as_ref().map(|exp| exp.into());
+            // Update the current experiment in AxumState for the GET /experiment/status endpoint
+            if let Ok(mut experiment) = axum_state.current_experiment.lock() {
+                *experiment = current_experiment.clone();
             } else {
-                error!("Failed to update experiment status in AxumState");
+                error!("Failed to update current experiment in AxumState");
             }
         }
 

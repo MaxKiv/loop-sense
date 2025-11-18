@@ -57,11 +57,11 @@ async fn main() {
         love_letter::Setpoint::default().into();
 
     let initial_report = None;
-    let initial_experiment_status = None;
+    let initial_experiment = None;
     let state = AxumState {
         setpoint: Arc::new(Mutex::new(initial_setpoint)),
         report: Arc::new(Mutex::new(initial_report)),
-        experiment_status: Arc::new(Mutex::new(initial_experiment_status)),
+        current_experiment: Arc::new(Mutex::new(initial_experiment)),
         experiment_watch: experiment_started_sender,
         experiments: Arc::new(Mutex::new(ExperimentList::new())),
         start_time: Arc::new(Utc::now()),
