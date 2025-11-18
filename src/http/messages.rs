@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 
 use crate::experiment::Experiment;
 
@@ -28,4 +28,21 @@ impl ExperimentList {
             experiments: Vec::new(),
         }
     }
+}
+
+/// Response format for listing experiments from the database
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ExperimentListFromDB {
+    pub experiments: Vec<ExperimentFromDB>,
+}
+
+/// Individual experiment details from the database
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ExperimentFromDB {
+    pub table_name: String,
+    pub experiment_id: String,
+    pub experiment_name: String,
+    pub description: String,
+    pub start_time: Option<String>,
+    pub duration_seconds: f64,
 }

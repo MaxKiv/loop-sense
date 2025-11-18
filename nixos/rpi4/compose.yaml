@@ -12,8 +12,10 @@ services:
       - --data-dir=/var/lib/influxdb3
     volumes:
       - influxdb_data:/var/lib/influxdb3
+    environment:
+      - INFLUXDB3_AUTH_TOKEN=apiv3_5QxwcqRvUVbyTqjqukOoKyyY04D4qpvS8vt5b0lB4nOnea1cCOgWo11d_Bx0vdqWpNB55qNbsCeFuW8uTdczxg
     healthcheck:
-      test: ["CMD-SHELL", "curl -f -H 'Authorization: Bearer apiv3_UDEF0KCLh_3KxygTc1YuRVu6Unk2_s_dwW43YUICVLtWFqjiFQ5uwKdqEPiAtdviQ5DUJ5l8yfAo1cNCbASbdg' http://localhost:8181/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f -H 'Authorization: Bearer apiv3_5QxwcqRvUVbyTqjqukOoKyyY04D4qpvS8vt5b0lB4nOnea1cCOgWo11d_Bx0vdqWpNB55qNbsCeFuW8uTdczxg' http://localhost:8181/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

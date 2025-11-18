@@ -106,10 +106,10 @@ async fn main() {
         .route("/heartbeat", get(get_heartbeat))
         .route("/measurements", get(get_measurements))
         .route("/experiment/status", get(get_experiment_status))
+        .route("/experiment/list", get(get_list_experiments_from_db))
         // POST endpoints
         .route("/control/loop", post(post_loop_setpoint))
         .route("/control/heart", post(post_heart_setpoint))
-        .route("/experiment/list", post(get_list_experiment))
         .route("/experiment/start", post(post_start_experiment))
         .route("/experiment/stop", post(post_stop_experiment))
         .layer(cors.clone()) // Attach CORS middleware

@@ -9,4 +9,4 @@ pub const MEASUREMENT_ID_TABLE: &str = "measurement_id";
 
 // NOTE: this is the docker db token
 pub const DB_ACCESS_TOKEN: &str =
-    "apiv3_UDEF0KCLh_3KxygTc1YuRVu6Unk2_s_dwW43YUICVLtWFqjiFQ5uwKdqEPiAtdviQ5DUJ5l8yfAo1cNCbASbdg";
+    "apiv3_5QxwcqRvUVbyTqjqukOoKyyY04D4qpvS8vt5b0lB4nOnea1cCOgWo11d_Bx0vdqWpNB55qNbsCeFuW8uTdczxg";
