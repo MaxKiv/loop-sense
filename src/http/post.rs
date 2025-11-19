@@ -19,7 +19,7 @@ pub async fn post_loop_setpoint(
             new_setpoint
         );
 
-        setpoint.mockloop_setpoint = new_setpoint;
+        setpoint.mockloop_setpoint = Some(new_setpoint);
         return StatusCode::OK;
     }
     // Unable to lock mutex, or mutex was poisoned
@@ -43,7 +43,7 @@ pub async fn post_heart_setpoint(
             &new_setpoint
         );
 
-        setpoint.heart_controller_setpoint = new_setpoint;
+        setpoint.heart_controller_setpoint = Some(new_setpoint);
         return StatusCode::OK;
     }
     // Unable to lock mutex, or mutex was poisoned

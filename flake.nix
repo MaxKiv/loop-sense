@@ -95,7 +95,7 @@
 
         buildInputs = [
           # pkgs.cargo-nextest
-          # pkgs.openssl.dev
+          pkgsHost.openssl.dev
           # ]
           # ++ lib.optional pkgs.stdenv.isDarwin [
           #   pkgs.libiconv

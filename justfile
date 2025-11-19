@@ -5,6 +5,9 @@ help:
 run:
     cargo run --features sim
 
+check:
+    cargo check
+
 # Snapshots the docker volume used by the influxdb3 container
 docker-save-db-volume:
     docker run --rm -v loop-sense_influxdb3_data:/data -v $PWD/snapshot:/backup alpine tar czf /backup/influxdb3-data.tar.gz -C /data .
@@ -18,7 +21,7 @@ rpi-build:
 
 # Manual rpi3 system image copy command
 rpi-copy:
-    nix copy [store-path-from-rpi-build] --to ssh://root@192.168.0.2
+    nix copy [store-path-from-rpi-build] --to ssh://root@192.168.0.4
 
 # Manual rpi3 system image copy command 2
 rpi-ssh-switch:
