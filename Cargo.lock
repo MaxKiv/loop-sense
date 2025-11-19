@@ -1055,7 +1055,7 @@ dependencies = [
 [[package]]
 name = "love-letter"
 version = "0.1.0"
-source = "git+ssh://git@bitbucket.org/mechatronica/love_letter.git#71590e8af97b7318d50afbf59059395387c36a0d"
+source = "git+ssh://git@bitbucket.org/mechatronica/love_letter.git#a679264708ec6a48e062304325124582d053a016"
 dependencies = [
  "chrono",
  "defmt",
