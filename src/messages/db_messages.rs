@@ -6,10 +6,10 @@ use crate::control::ControllerReport;
 
 #[derive(Debug, Clone, InfluxDbWriteable)]
 pub struct DatabaseRecord {
-    right_preload_pressure_mmhg: f32,
-    left_preload_pressure_mmhg: f32,
-    right_afterload_pressure_mmhg: f32,
-    left_afterload_pressure_mmhg: f32,
+    pulmonary_preload_pressure_mmhg: f32,
+    systemic_preload_pressure_mmhg: f32,
+    pulmonary_afterload_pressure_mmhg: f32,
+    systemic_afterload_pressure_mmhg: f32,
     systemic_flow_l_per_min: f32,
     pulmonary_flow_l_per_min: f32,
     heart_rate: Option<f32>,
@@ -17,8 +17,8 @@ pub struct DatabaseRecord {
     systole_ratio: Option<f32>,
     systemic_resistance: Option<f32>,
     pulmonary_resistance: Option<f32>,
-    left_afterload_compliance: Option<f32>,
-    right_afterload_compliance: Option<f32>,
+    systemic_afterload_compliance: Option<f32>,
+    pulmonary_afterload_compliance: Option<f32>,
     simulation_time: f32,
     time: DateTime<Utc>,
     experiment_id: String,
@@ -33,10 +33,10 @@ impl From<ControllerReport> for DatabaseRecord {
         let uuid = r.experiment.id.as_hyphenated().encode_lower(&mut buf);
 
         Self {
-            right_preload_pressure_mmhg: r.measurements.pulmonary_preload_pressure.get::<bar>(),
-            left_preload_pressure_mmhg: r.measurements.systemic_preload_pressure.get::<bar>(),
-            right_afterload_pressure_mmhg: r.measurements.pulmonary_afterload_pressure.get::<bar>(),
-            left_afterload_pressure_mmhg: r.measurements.systemic_afterload_pressure.get::<bar>(),
+            pulmonary_preload_pressure_mmhg: r.measurements.pulmonary_preload_pressure.get::<bar>(),
+            systemic_preload_pressure_mmhg: r.measurements.systemic_preload_pressure.get::<bar>(),
+            pulmonary_afterload_pressure_mmhg: r.measurements.pulmonary_afterload_pressure.get::<bar>(),
+            systemic_afterload_pressure_mmhg: r.measurements.systemic_afterload_pressure.get::<bar>(),
             systemic_flow_l_per_min: r.measurements.systemic_flow.get::<liter_per_minute>(),
             pulmonary_flow_l_per_min: r.measurements.pulmonary_flow.get::<liter_per_minute>(),
             heart_rate: r
@@ -53,11 +53,11 @@ impl From<ControllerReport> for DatabaseRecord {
                 .map(|s| s.systole_ratio),
             systemic_resistance: r.mockloop_setpoint.as_ref().map(|s| s.systemic_resistance),
             pulmonary_resistance: r.mockloop_setpoint.as_ref().map(|s| s.pulmonary_resistance),
-            left_afterload_compliance: r
+            systemic_afterload_compliance: r
                 .mockloop_setpoint
                 .as_ref()
                 .map(|s| s.systemic_afterload_compliance),
-            right_afterload_compliance: r
+            pulmonary_afterload_compliance: r
                 .mockloop_setpoint
                 .as_ref()
                 .map(|s| s.pulmonary_afterload_compliance),

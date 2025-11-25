@@ -143,10 +143,10 @@ Returns the latest measurement fetched from the mockloop microcontroller.
 
 ```rust
 pub struct Report {
-    right_preload_pressure_mmhg: f32,
-    left_preload_pressure_mmhg: f32,
-    right_afterload_pressure_mmhg: f32,
-    left_afterload_pressure_mmhg: f32,
+    pulmonary_preload_pressure: f32,
+    systemic_preload_pressure: f32,
+    pulmonary_afterload_pressure: f32,
+    systemic_afterload_pressure: f32,
     systemic_flow_l_per_min: f32,
     pulmonary_flow_l_per_min: f32,
     heart_rate: f32,
@@ -154,8 +154,8 @@ pub struct Report {
     systole_ratio: f32,
     systemic_resistance: f32,
     pulmonary_resistance: f32,
-    left_afterload_compliance: f32,
-    right_afterload_compliance: f32,
+    systemic_afterload_compliance: f32,
+    pulmonary_afterload_compliance: f32,
     time: i64,
     experiment_id: String,
     experiment_name: String,
