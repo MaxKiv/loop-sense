@@ -10,10 +10,10 @@ use crate::control::ControllerReport;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Report {
-    right_preload_pressure_mmhg: f32,
-    left_preload_pressure_mmhg: f32,
-    right_afterload_pressure_mmhg: f32,
-    left_afterload_pressure_mmhg: f32,
+    pulmonary_preload_pressure: f32,
+    systemic_preload_pressure: f32,
+    pulmonary_afterload_pressure: f32,
+    systemic_afterload_pressure: f32,
     systemic_flow_l_per_min: f32,
     pulmonary_flow_l_per_min: f32,
     heart_rate: Option<f32>,
@@ -21,8 +21,8 @@ pub struct Report {
     systole_ratio: Option<f32>,
     systemic_resistance: Option<f32>,
     pulmonary_resistance: Option<f32>,
-    left_afterload_compliance: Option<f32>,
-    right_afterload_compliance: Option<f32>,
+    systemic_afterload_compliance: Option<f32>,
+    pulmonary_afterload_compliance: Option<f32>,
     time: i64,
     experiment_id: String,          // TODO: make this tag
     experiment_name: String,        // TODO: make this tag
@@ -36,10 +36,10 @@ impl From<ControllerReport> for Report {
         let uuid = r.experiment.id.as_hyphenated().encode_lower(&mut buf);
 
         Self {
-            right_preload_pressure_mmhg: r.measurements.pulmonary_preload_pressure.get::<bar>(),
-            left_preload_pressure_mmhg: r.measurements.systemic_preload_pressure.get::<bar>(),
-            right_afterload_pressure_mmhg: r.measurements.pulmonary_afterload_pressure.get::<bar>(),
-            left_afterload_pressure_mmhg: r.measurements.systemic_afterload_pressure.get::<bar>(),
+            pulmonary_preload_pressure: r.measurements.pulmonary_preload_pressure.get::<bar>(),
+            systemic_preload_pressure: r.measurements.systemic_preload_pressure.get::<bar>(),
+            pulmonary_afterload_pressure: r.measurements.pulmonary_afterload_pressure.get::<bar>(),
+            systemic_afterload_pressure: r.measurements.systemic_afterload_pressure.get::<bar>(),
             systemic_flow_l_per_min: r.measurements.systemic_flow.get::<liter_per_minute>(),
             pulmonary_flow_l_per_min: r.measurements.pulmonary_flow.get::<liter_per_minute>(),
             heart_rate: r
@@ -56,11 +56,11 @@ impl From<ControllerReport> for Report {
                 .map(|s| s.systole_ratio),
             systemic_resistance: r.mockloop_setpoint.as_ref().map(|s| s.systemic_resistance),
             pulmonary_resistance: r.mockloop_setpoint.as_ref().map(|s| s.pulmonary_resistance),
-            left_afterload_compliance: r
+            systemic_afterload_compliance: r
                 .mockloop_setpoint
                 .as_ref()
                 .map(|s| s.systemic_afterload_compliance),
-            right_afterload_compliance: r
+            pulmonary_afterload_compliance: r
                 .mockloop_setpoint
                 .as_ref()
                 .map(|s| s.pulmonary_afterload_compliance),
@@ -120,8 +120,8 @@ pub struct HeartControllerSetpoint {
 pub struct FrontendMockloopSetpoint {
     systemic_mmhg_s_per_l: f32,
     pulmonary_mmhg_s_per_l: f32,
-    left_afterload_compliance_l_per_mmhg: f32,
-    right_afterload_compliance_l_per_mmhg: f32,
+    systemic_afterload_compliance_l_per_mmhg: f32,
+    pulmonary_afterload_compliance_l_per_mmhg: f32,
 }
 
 pub struct FrontendHeartControllerSetpoint {
@@ -140,8 +140,8 @@ impl From<FrontendMockloopSetpoint> for MockloopSetpoint {
         MockloopSetpoint {
             systemic_resistance: frontend.systemic_mmhg_s_per_l,
             pulmonary_resistance: frontend.pulmonary_mmhg_s_per_l,
-            systemic_afterload_compliance: frontend.left_afterload_compliance_l_per_mmhg,
-            pulmonary_afterload_compliance: frontend.right_afterload_compliance_l_per_mmhg,
+            systemic_afterload_compliance: frontend.systemic_afterload_compliance_l_per_mmhg,
+            pulmonary_afterload_compliance: frontend.pulmonary_afterload_compliance_l_per_mmhg,
         }
     }
 }
