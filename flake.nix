@@ -93,16 +93,16 @@
             # pkgs.rustPlatform.bindgenHook
           ];
 
-        buildInputs = [
-          # pkgs.cargo-nextest
-          pkgsHost.openssl.dev
-          # ]
-          # ++ lib.optional pkgs.stdenv.isDarwin [
-          #   pkgs.libiconv
-          #   pkgs.iconv
-          #   pkgs.cacert
-          #   pkgs.curl
-        ];
+        buildInputs =
+          [
+            # pkgs.cargo-nextest
+            pkgsHost.openssl.dev
+          ]
+          ++ lib.optionals pkgsHost.stdenv.isDarwin [
+            pkgsHost.libiconv
+            pkgsHost.darwin.apple_sdk.frameworks.Security
+            pkgsHost.darwin.apple_sdk.frameworks.SystemConfiguration
+          ];
 
         LIBCLANG_PATH = "${pkgsHost.llvmPackages.libclang.lib}/lib";
       };
@@ -133,9 +133,22 @@
             # Set rust target
             CARGO_BUILD_TARGET = target;
 
-            # Set build inputs
+            # Set build inputs for cross compilation
             buildInputs =
-              commonArgs.buildInputs;
+              [
+                crossPkgs.openssl.dev
+              ]
+              ++ lib.optionals crossPkgs.stdenv.isDarwin [
+                crossPkgs.libiconv
+                crossPkgs.darwin.apple_sdk.frameworks.Security
+                crossPkgs.darwin.apple_sdk.frameworks.SystemConfiguration
+              ];
+
+            nativeBuildInputs =
+              commonArgs.nativeBuildInputs
+              ++ lib.optionals crossPkgs.stdenv.isLinux [
+                crossPkgs.buildPackages.pkg-config
+              ];
 
             # Only enable static CRT for musl targets
             CARGO_BUILD_RUSTFLAGS = lib.optionalString isMusl "-C target-feature=+crt-static";

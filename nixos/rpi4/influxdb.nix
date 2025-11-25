@@ -30,7 +30,7 @@
     description = "InfluxDB3 stack via Docker Compose";
     after = ["network-online.target" "docker.service"];
     wants = ["network-online.target"];
-    requires = ["docker.service" "docker-load-images.service"];
+    requires = ["docker.service"];
     bindsTo = ["docker.service"];
     wantedBy = ["multi-user.target"];
 
