@@ -16,12 +16,14 @@
     openssh.authorizedKeys.keys = [
       sshPublicKeys.users.max
       sshPublicKeys.users.kousheek
+      sshPublicKeys.users.camille
     ];
   };
   users.users.root = {
     openssh.authorizedKeys.keys = [
       sshPublicKeys.users.max
       sshPublicKeys.users.kousheek
+      sshPublicKeys.users.camille
     ];
   };
 

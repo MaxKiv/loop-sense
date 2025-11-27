@@ -24,9 +24,12 @@ pub struct Report {
     systemic_afterload_compliance: Option<f32>,
     pulmonary_afterload_compliance: Option<f32>,
     time: i64,
-    experiment_id: String,          // TODO: make this tag
-    experiment_name: String,        // TODO: make this tag
-    experiment_description: String, // TODO: make this tag
+    #[influxdb(tag)]
+    experiment_id: String,
+    #[influxdb(tag)]
+    experiment_name: String,
+    #[influxdb(tag)]
+    experiment_description: String,
 }
 
 impl From<ControllerReport> for Report {
