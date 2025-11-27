@@ -1,3 +1,4 @@
+use influxdb::InfluxDbWriteable;
 use serde::{Deserialize, Serialize};
 use uom::si::{
     f32::{Frequency, Pressure},
@@ -10,10 +11,10 @@ use crate::control::ControllerReport;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Report {
-    pulmonary_preload_pressure: f32,
-    systemic_preload_pressure: f32,
-    pulmonary_afterload_pressure: f32,
-    systemic_afterload_pressure: f32,
+    pulmonary_preload_pressure_mmhg: f32,
+    systemic_preload_pressure_mmhg: f32,
+    pulmonary_afterload_pressure_mmhg: f32,
+    systemic_afterload_pressure_mmhg: f32,
     systemic_flow_l_per_min: f32,
     pulmonary_flow_l_per_min: f32,
     heart_rate: Option<f32>,
@@ -24,11 +25,8 @@ pub struct Report {
     systemic_afterload_compliance: Option<f32>,
     pulmonary_afterload_compliance: Option<f32>,
     time: i64,
-    #[influxdb(tag)]
     experiment_id: String,
-    #[influxdb(tag)]
     experiment_name: String,
-    #[influxdb(tag)]
     experiment_description: String,
 }
 
@@ -39,10 +37,10 @@ impl From<ControllerReport> for Report {
         let uuid = r.experiment.id.as_hyphenated().encode_lower(&mut buf);
 
         Self {
-            pulmonary_preload_pressure: r.measurements.pulmonary_preload_pressure.get::<bar>(),
-            systemic_preload_pressure: r.measurements.systemic_preload_pressure.get::<bar>(),
-            pulmonary_afterload_pressure: r.measurements.pulmonary_afterload_pressure.get::<bar>(),
-            systemic_afterload_pressure: r.measurements.systemic_afterload_pressure.get::<bar>(),
+            pulmonary_preload_pressure_mmhg: r.measurements.pulmonary_preload_pressure.get::<bar>(),
+            systemic_preload_pressure_mmhg: r.measurements.systemic_preload_pressure.get::<bar>(),
+            pulmonary_afterload_pressure_mmhg: r.measurements.pulmonary_afterload_pressure.get::<bar>(),
+            systemic_afterload_pressure_mmhg: r.measurements.systemic_afterload_pressure.get::<bar>(),
             systemic_flow_l_per_min: r.measurements.systemic_flow.get::<liter_per_minute>(),
             pulmonary_flow_l_per_min: r.measurements.pulmonary_flow.get::<liter_per_minute>(),
             heart_rate: r
