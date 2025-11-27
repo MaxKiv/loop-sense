@@ -180,18 +180,6 @@
           };
 
         devShells = {
-          # default = pkgsLocal.mkShell {
-          #   LD_LIBRARY_PATH = pkgsLocal.lib.makeLibraryPath [pkgsLocal.stdenv.cc.cc];
-          #   RUST_BACKTRACE = "full";
-          #   buildInputs = with pkgsLocal; [
-          #     nil
-          #     alejandra
-          #     toolchain
-          #     rust-analyzer
-          #     influxdb3
-          #     git-lfs
-          #   ];
-          # };
           default = baseCraneLib.devShell (commonArgs
             // {
               inputsFrom = [hostPackage];
