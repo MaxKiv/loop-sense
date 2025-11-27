@@ -16,6 +16,7 @@
     wget
     ripgrep
     eza
+    nodejs_24
   ];
 }
 

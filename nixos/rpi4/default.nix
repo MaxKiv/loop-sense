@@ -20,6 +20,7 @@
     ./influxdb.nix
     ./uart.nix
     ./loop-sense.nix
+    ./heart-os.nix
   ];
 
   nix.settings.experimental-features = ["nix-command" "flakes"];
