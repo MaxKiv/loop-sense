@@ -6,11 +6,11 @@ use crate::http::CONVEX_URI;
 use crate::http::get::*;
 use crate::http::messages::ExperimentList;
 use crate::http::post::*;
+use crate::http::ws::handle_websocket_request;
 use crate::messages::frontend_messages;
 use crate::micro_communication_task::communicate_with_micro;
 use axum::Router;
-use axum::routing::get;
-use axum::routing::post;
+use axum::routing::{any, get, post};
 use chrono::Utc;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
@@ -105,6 +105,7 @@ async fn main() {
         // GET endpoints
         .route("/heartbeat", get(get_heartbeat))
         .route("/measurements", get(get_measurements))
+        .route("/ws/measurements", any(handle_websocket_request))
         .route("/experiment/status", get(get_experiment_status))
         .route("/experiment/list", get(get_list_experiments_from_db))
         .route(

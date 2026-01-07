@@ -3,7 +3,7 @@ help:
     @just --list
 
 run:
-    cargo run --features sim
+    cargo run
 
 check:
     cargo check
@@ -48,7 +48,7 @@ rpi4-ssh-switch:
 # Build rpi4 image, copy to rpi4 and switch system
 rpi4-switch:
     nix run nixpkgs#nixos-rebuild -- switch --flake .#rpi4 --target-host root@192.168.0.4 --verbose --show-trace
-    
+
 ### Debug commands ###
 
 # send a test controller setpoint using curl
