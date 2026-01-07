@@ -3,7 +3,7 @@ use chrono::TimeDelta;
 use love_letter::{Report, Setpoint};
 use tokio::{
     sync::{
-        mpsc::{self, Sender},
+        mpsc::{self},
         watch,
     },
     time::{Duration, timeout},
@@ -40,7 +40,7 @@ pub async fn control_loop(
             // Ask the experiment manager for the current experiment status
             info!("Experiment change detected");
             current_experiment = (*experiment_receiver.borrow_and_update()).clone();
-            
+
             // Update the current experiment in AxumState for the GET /experiment/status endpoint
             if let Ok(mut experiment) = axum_state.current_experiment.lock() {
                 *experiment = current_experiment.clone();

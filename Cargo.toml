@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.98"
 async-trait = "0.1.88"
-axum = { version = "0.8.4", features = ["macros"] }
+axum = { version = "0.8.4", features = ["macros", "ws"] }
 chrono = { version = "0.4.41", features = ["serde"] }
 fmt = "0.1.0"
 influxdb = { version = "0.7.2", features = ["derive"] }
@@ -25,6 +25,7 @@ love-letter = { git = "ssh://git@bitbucket.org/mechatronica/love_letter.git" }
 tokio-serial = "5.4.5"
 uuid = { version = "1.18.0", features = ["serde", "v4"] }
 tower-http = { version = "0.6.6", features = ["cors"] }
+futures-util = "0.3.31"
 
 [dev-dependencies]
 axum = "0.8.4"
