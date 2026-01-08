@@ -8,28 +8,29 @@
   sshPublicKeys,
   ...
 }: {
-  # Systemd service to run the Heart OS React Vite application
-  systemd.services.heart-os = {
-    description = "Heart OS React Vite Development Server";
-    after = ["network-online.target"];
-    wants = ["network-online.target"];
-    wantedBy = ["multi-user.target"];
+  # Enable nginx service to serve the built React application
+  services.nginx = {
+    enable = true;
 
-    serviceConfig = {
-      Type = "simple";
-      ExecStart = "${pkgs.nodejs_24}/bin/npm run dev";
-      Restart = "always";
-      RestartSec = "10s";
-      
-      # Run as root user (since folder is in /root)
-      User = "root";
-      Group = "root";
-      
-      # Working directory
-      WorkingDirectory = "/root/heart_os";
-      
-      # Environment variables
-      Environment = "PATH=${pkgs.nodejs_24}/bin:${pkgs.bash}/bin";
+    virtualHosts."heart-os" = {
+      serverName = "heart-os";
+      default = true;  # Make this the default server for port 80
+      root = "/var/www/heart_os";
+
+      # SPA routing - serve index.html for all routes
+      locations."/" = {
+        extraConfig = ''
+          try_files $uri $uri/ /index.html;
+        '';
+      };
+
+      # Cache static assets
+      locations."~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$" = {
+        extraConfig = ''
+          expires 1y;
+          add_header Cache-Control "public, immutable";
+        '';
+      };
     };
   };
 }

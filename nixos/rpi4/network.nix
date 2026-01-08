@@ -24,7 +24,7 @@
   networking.firewall = {
     enable = true;
     checkReversePath = false;
-    allowedTCPPorts = [8000 8086 5173];
+    allowedTCPPorts = [8000 8086 5173 80];
     allowedUDPPorts = [8000 8086];
   };
 

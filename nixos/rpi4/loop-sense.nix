@@ -6,7 +6,6 @@
   pkgs,
   lib,
   sshPublicKeys,
-  loopSensePackage,
   ...
 }: {
   # Systemd service to run the Loop Sense application
@@ -18,19 +17,19 @@
 
     serviceConfig = {
       Type = "simple";
-      ExecStart = "${loopSensePackage}/bin/loop_sense";
+      ExecStart = "/root/loop_sense/target/release/loop_sense";
       Restart = "always";
       RestartSec = "10s";
       
-      # Run as max user with access to UART/serial devices
-      User = username;
-      Group = "dialout";
+      # Run as root user (since executable is in /root)
+      User = "root";
+      Group = "root";
       
       # Environment variables (if needed)
       # Environment = "RUST_LOG=info";
       
       # Working directory
-      WorkingDirectory = "/home/${username}";
+      WorkingDirectory = "/root/loop_sense";
       
       # Security hardening (optional)
       # NoNewPrivileges = true;

@@ -17,6 +17,7 @@
     ripgrep
     eza
     nodejs_24
+    nginx
   ];
 }
 
