@@ -2,7 +2,7 @@ use influxdb::InfluxDbWriteable;
 use serde::{Deserialize, Serialize};
 use uom::si::{
     f32::{Frequency, Pressure},
-    frequency::hertz,
+    frequency::{cycle_per_minute, hertz},
     pressure::bar,
     volume_rate::liter_per_minute,
 };
@@ -39,8 +39,14 @@ impl From<ControllerReport> for Report {
         Self {
             pulmonary_preload_pressure_mmhg: r.measurements.pulmonary_preload_pressure.get::<bar>(),
             systemic_preload_pressure_mmhg: r.measurements.systemic_preload_pressure.get::<bar>(),
-            pulmonary_afterload_pressure_mmhg: r.measurements.pulmonary_afterload_pressure.get::<bar>(),
-            systemic_afterload_pressure_mmhg: r.measurements.systemic_afterload_pressure.get::<bar>(),
+            pulmonary_afterload_pressure_mmhg: r
+                .measurements
+                .pulmonary_afterload_pressure
+                .get::<bar>(),
+            systemic_afterload_pressure_mmhg: r
+                .measurements
+                .systemic_afterload_pressure
+                .get::<bar>(),
             systemic_flow_l_per_min: r.measurements.systemic_flow.get::<liter_per_minute>(),
             pulmonary_flow_l_per_min: r.measurements.pulmonary_flow.get::<liter_per_minute>(),
             heart_rate: r
@@ -172,7 +178,7 @@ impl Into<love_letter::MockloopSetpoint> for MockloopSetpoint {
 impl From<FrontendHeartControllerSetpoint> for HeartControllerSetpoint {
     fn from(frontend: FrontendHeartControllerSetpoint) -> Self {
         HeartControllerSetpoint {
-            heart_rate: Frequency::new::<hertz>(frontend.heart_rate),
+            heart_rate: Frequency::new::<cycle_per_minute>(frontend.heart_rate),
             pressure: Pressure::new::<bar>(frontend.pressure),
             systole_ratio: frontend.systole_ratio,
         }

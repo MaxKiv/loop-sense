@@ -6,8 +6,6 @@ use tracing::*;
 
 use crate::communicator::MockloopCommunicator;
 
-/// Defines the frequency at which mcu communication takes place
-const COMMS_LOOP_PERIOD: Duration = Duration::from_millis(10);
 /// Bounds the maximum duration between consecutive setpoints / reports
 const COMMS_TIMEOUT: Duration = Duration::from_millis(2000);
 
@@ -15,8 +13,6 @@ pub async fn communicate_with_micro(
     setpoint_receiver: watch::Receiver<Setpoint>,
     report_sender: mpsc::Sender<Report>,
 ) {
-    let mut ticker = time::interval(COMMS_LOOP_PERIOD);
-
     #[cfg(feature = "sim-mcu")]
     let (communicator, receiver) = PassThroughCommunicator::new_with_receiver();
     #[cfg(not(feature = "sim-mcu"))]
@@ -60,7 +56,5 @@ pub async fn communicate_with_micro(
                 error!("timeout receiving report from mcu: {err}");
             }
         }
-
-        ticker.tick().await;
     }
 }
