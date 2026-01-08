@@ -6,7 +6,7 @@ use futures_util::{sink::SinkExt, stream::StreamExt};
 use tokio::time::{self, Duration};
 use tracing::*;
 
-const MEASUREMENT_SEND_PERIOD: Duration = Duration::from_millis(20);
+const MEASUREMENT_SEND_PERIOD: Duration = Duration::from_millis(100);
 
 /// Attempt to establish websocket
 pub async fn handle_websocket_request(
@@ -43,8 +43,8 @@ async fn handle_ws_measurements(socket: WebSocket, state: AxumState) {
                 }
             };
 
-            if let Ok(bytes) = serde_json::to_vec(&report) {
-                let msg = Message::Binary(bytes.into());
+            if let Ok(bytes) = serde_json::to_string(&report) {
+                let msg = Message::Text(bytes.into());
 
                 if let Err(e) = sender.send(msg).await {
                     error!("WebSocket send failed: {}", e);
