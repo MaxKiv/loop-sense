@@ -1113,7 +1113,6 @@ dependencies = [
 [[package]]
 name = "love-letter"
 version = "0.1.0"
-source = "git+ssh://git@bitbucket.org/mechatronica/love_letter.git#cf3195296669efecb7a63927aba8d33676549e52"
 dependencies = [
  "chrono",
  "defmt",
