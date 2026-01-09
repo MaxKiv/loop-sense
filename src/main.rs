@@ -15,7 +15,7 @@ use chrono::Utc;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use tokio::task;
-use tower_http::cors::{Any, CorsLayer, AllowOrigin};
+use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 use tracing::*;
 use tracing_subscriber::FmtSubscriber;
 
@@ -27,6 +27,10 @@ pub mod experiment;
 pub mod http;
 pub mod messages;
 pub mod micro_communication_task;
+
+const PI_IP: &str = "192.168.0.4";
+const FRONTEND_PORT_PROD: usize = 80;
+const FRONTEND_PORT_DEV: usize = 5173;
 
 /// Application & Tokio executor entrypoint
 #[tokio::main]
@@ -96,11 +100,7 @@ async fn main() {
 
     // Define CORS rules
     let cors = CorsLayer::new()
-        .allow_origin(AllowOrigin::list([
-            "http://192.168.0.4".parse().unwrap(),
-            "http://192.168.0.4:80".parse().unwrap(),
-            "http://192.168.0.4:5173".parse().unwrap(),
-        ]))
+        .allow_origin(Any)
         .allow_methods([axum::http::Method::GET, axum::http::Method::POST])
         .allow_headers(Any);
 

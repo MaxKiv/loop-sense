@@ -1,4 +1,3 @@
-use influxdb::InfluxDbWriteable;
 use serde::{Deserialize, Serialize};
 use uom::si::{
     f32::{Frequency, Pressure},
@@ -52,7 +51,7 @@ impl From<ControllerReport> for Report {
             heart_rate: r
                 .heart_controller_setpoint
                 .as_ref()
-                .map(|s| s.heart_rate.get::<hertz>()),
+                .map(|s| s.heart_rate.get::<cycle_per_minute>()),
             pressure: r
                 .heart_controller_setpoint
                 .as_ref()
@@ -131,6 +130,7 @@ pub struct FrontendMockloopSetpoint {
     pulmonary_afterload_compliance_l_per_mmhg: f32,
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct FrontendHeartControllerSetpoint {
     heart_rate: f32,
     pressure: f32,
@@ -164,13 +164,13 @@ impl From<love_letter::MockloopSetpoint> for MockloopSetpoint {
     }
 }
 
-impl Into<love_letter::MockloopSetpoint> for MockloopSetpoint {
-    fn into(self) -> love_letter::MockloopSetpoint {
+impl From<MockloopSetpoint> for love_letter::MockloopSetpoint {
+    fn from(val: MockloopSetpoint) -> Self {
         love_letter::MockloopSetpoint {
-            systemic_resistance: self.systemic_resistance,
-            pulmonary_resistance: self.pulmonary_resistance,
-            systemic_afterload_compliance: self.systemic_afterload_compliance,
-            pulmonary_afterload_compliance: self.pulmonary_afterload_compliance,
+            systemic_resistance: val.systemic_resistance,
+            pulmonary_resistance: val.pulmonary_resistance,
+            systemic_afterload_compliance: val.systemic_afterload_compliance,
+            pulmonary_afterload_compliance: val.pulmonary_afterload_compliance,
         }
     }
 }
@@ -185,12 +185,12 @@ impl From<FrontendHeartControllerSetpoint> for HeartControllerSetpoint {
     }
 }
 
-impl Into<love_letter::HeartControllerSetpoint> for HeartControllerSetpoint {
-    fn into(self) -> love_letter::HeartControllerSetpoint {
+impl From<HeartControllerSetpoint> for love_letter::HeartControllerSetpoint {
+    fn from(val: HeartControllerSetpoint) -> Self {
         love_letter::HeartControllerSetpoint {
-            heart_rate: self.heart_rate,
-            pressure: self.pressure,
-            systole_ratio: self.systole_ratio,
+            heart_rate: val.heart_rate,
+            pressure: val.pressure,
+            systole_ratio: val.systole_ratio,
         }
     }
 }
