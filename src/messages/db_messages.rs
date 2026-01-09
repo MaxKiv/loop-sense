@@ -1,6 +1,10 @@
 use chrono::{DateTime, Utc};
 use influxdb::InfluxDbWriteable;
-use uom::si::{frequency::hertz, pressure::bar, volume_rate::liter_per_minute};
+use uom::si::{
+    frequency::{cycle_per_minute, hertz},
+    pressure::bar,
+    volume_rate::liter_per_minute,
+};
 
 use crate::control::ControllerReport;
 
@@ -51,7 +55,7 @@ impl From<ControllerReport> for DatabaseRecord {
             heart_rate: r
                 .heart_controller_setpoint
                 .as_ref()
-                .map(|s| s.heart_rate.get::<hertz>()),
+                .map(|s| s.heart_rate.get::<cycle_per_minute>()),
             pressure: r
                 .heart_controller_setpoint
                 .as_ref()
