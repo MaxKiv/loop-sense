@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use uom::si::pressure::millibar;
 use uom::si::{
     f32::{Frequency, Pressure},
     frequency::{cycle_per_minute, hertz},
@@ -179,7 +180,7 @@ impl From<FrontendHeartControllerSetpoint> for HeartControllerSetpoint {
     fn from(frontend: FrontendHeartControllerSetpoint) -> Self {
         HeartControllerSetpoint {
             heart_rate: Frequency::new::<cycle_per_minute>(frontend.heart_rate),
-            pressure: Pressure::new::<bar>(frontend.pressure),
+            pressure: Pressure::new::<millibar>(frontend.pressure),
             systole_ratio: frontend.systole_ratio,
         }
     }
