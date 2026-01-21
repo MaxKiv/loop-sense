@@ -171,12 +171,12 @@
           inherit cargoArtifacts;
           doCheck = false;
         });
-    in
-      with pkgsHost; {
+    in {
         packages =
           packages
           // {
             default = hostPackage;
+            rpi = makePackage "aarch64-unknown-linux-gnu";
           };
 
         devShells = {
