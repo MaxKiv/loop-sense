@@ -55,6 +55,8 @@ rpi4-switch:
 post:
     curl -X POST http://192.168.0.4:8000/setpoint      -H "Content-Type: application/json"      -d "{\"enable\":true,\"heart_rate\":1.3333334,\"pressure\":3000.0,\"loop_frequency\":100.0,\"systole_ratio\":0.42857143}"
 
+    curl -X POST http://192.168.0.4:8000/control/loop      -H "Content-Type: application/json"      -d "{\"enable\":true,\"heart_rate\":1.3333334,\"pressure\":3000.0,\"loop_frequency\":100.0,\"systole_ratio\":0.42857143}"
+
 # get sensor data using curl
 get:
     curl -X GET http://192.168.0.4:8181/api/v3/query_sql?db=mockloop_data&q=SELECT * from test_data

@@ -26,4 +26,3 @@
   # Only Nix can mutate users
   users.mutableUsers = false;
 }
-

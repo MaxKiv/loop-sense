@@ -9,7 +9,6 @@
   composePath,
   ...
 }: {
-
   # Systemd unit to autorun docker compose on pi startup
   systemd.services.influxdb-stack = {
     description = "InfluxDB3 stack via Docker Compose";
@@ -35,4 +34,3 @@
     mode = "0644";
   };
 }
-

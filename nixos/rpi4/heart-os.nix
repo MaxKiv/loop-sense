@@ -14,7 +14,7 @@
 
     virtualHosts."heart-os" = {
       serverName = "heart-os";
-      default = true;  # Make this the default server for port 80
+      default = true; # Make this the default server for port 80
       root = "/var/www/heart_os";
 
       # SPA routing - serve index.html for all routes
@@ -34,4 +34,3 @@
     };
   };
 }
-

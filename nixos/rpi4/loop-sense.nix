@@ -20,21 +20,20 @@
       ExecStart = "/root/loop_sense/target/release/loop_sense";
       Restart = "always";
       RestartSec = "10s";
-      
+
       # Run as root user (since executable is in /root)
       User = "root";
       Group = "root";
-      
+
       # Environment variables (if needed)
       # Environment = "RUST_LOG=info";
-      
+
       # Working directory
       WorkingDirectory = "/root/loop_sense";
-      
+
       # Security hardening (optional)
       # NoNewPrivileges = true;
       # PrivateTmp = true;
     };
   };
 }
-

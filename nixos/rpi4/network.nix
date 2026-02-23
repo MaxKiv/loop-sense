@@ -27,6 +27,4 @@
     allowedTCPPorts = [8000 8086 5173 80];
     allowedUDPPorts = [8000 8086];
   };
-
 }
-
