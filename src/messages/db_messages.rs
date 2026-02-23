@@ -1,28 +1,33 @@
 use chrono::{DateTime, Utc};
 use influxdb::InfluxDbWriteable;
-use uom::si::{
-    frequency::{cycle_per_minute, hertz},
-    pressure::bar,
-    volume_rate::liter_per_minute,
-};
+use uom::si::{frequency::cycle_per_minute, pressure::bar, volume_rate::liter_per_minute};
 
 use crate::control::ControllerReport;
 
 #[derive(Debug, Clone, InfluxDbWriteable)]
 pub struct DatabaseRecord {
+    // Sensor data
     pulmonary_preload_pressure_mmhg: f32,
     systemic_preload_pressure_mmhg: f32,
     pulmonary_afterload_pressure_mmhg: f32,
     systemic_afterload_pressure_mmhg: f32,
     systemic_flow_l_per_min: f32,
     pulmonary_flow_l_per_min: f32,
+
+    // Heart controller
+    heart_controller_enable: bool,
     heart_rate: Option<f32>,
     pressure: Option<f32>,
     systole_ratio: Option<f32>,
+
+    // Mockloop controller
+    mockloop_controller_enable: bool,
     systemic_resistance: Option<f32>,
     pulmonary_resistance: Option<f32>,
     systemic_afterload_compliance: Option<f32>,
     pulmonary_afterload_compliance: Option<f32>,
+
+    // Metadata
     simulation_time: f32,
     time: DateTime<Utc>,
     #[influxdb(tag)]
@@ -40,6 +45,7 @@ impl From<ControllerReport> for DatabaseRecord {
         let uuid = r.experiment.id.as_hyphenated().encode_lower(&mut buf);
 
         Self {
+            // Sensor data
             pulmonary_preload_pressure_mmhg: r.measurements.pulmonary_preload_pressure.get::<bar>(),
             systemic_preload_pressure_mmhg: r.measurements.systemic_preload_pressure.get::<bar>(),
             pulmonary_afterload_pressure_mmhg: r
@@ -52,28 +58,43 @@ impl From<ControllerReport> for DatabaseRecord {
                 .get::<bar>(),
             systemic_flow_l_per_min: r.measurements.systemic_flow.get::<liter_per_minute>(),
             pulmonary_flow_l_per_min: r.measurements.pulmonary_flow.get::<liter_per_minute>(),
-            heart_rate: r
-                .heart_controller_setpoint
-                .as_ref()
-                .map(|s| s.heart_rate.get::<cycle_per_minute>()),
+
+            // Heart controller
+            heart_controller_enable: r.heart_controller_setpoint.enable,
+            heart_rate: r.heart_controller_setpoint.enable.then_some(
+                r.heart_controller_setpoint
+                    .heart_rate
+                    .get::<cycle_per_minute>(),
+            ),
             pressure: r
                 .heart_controller_setpoint
-                .as_ref()
-                .map(|s| s.pressure.get::<bar>()),
+                .enable
+                .then_some(r.heart_controller_setpoint.pressure.get::<bar>()),
             systole_ratio: r
                 .heart_controller_setpoint
-                .as_ref()
-                .map(|s| s.systole_ratio),
-            systemic_resistance: r.mockloop_setpoint.as_ref().map(|s| s.systemic_resistance),
-            pulmonary_resistance: r.mockloop_setpoint.as_ref().map(|s| s.pulmonary_resistance),
+                .enable
+                .then_some(r.heart_controller_setpoint.systole_ratio),
+
+            // Mockloop controller
+            mockloop_controller_enable: r.mockloop_setpoint.enable,
+            systemic_resistance: r
+                .mockloop_setpoint
+                .enable
+                .then_some(r.mockloop_setpoint.systemic_resistance),
+            pulmonary_resistance: r
+                .mockloop_setpoint
+                .enable
+                .then_some(r.mockloop_setpoint.pulmonary_resistance),
             systemic_afterload_compliance: r
                 .mockloop_setpoint
-                .as_ref()
-                .map(|s| s.systemic_afterload_compliance),
+                .enable
+                .then_some(r.mockloop_setpoint.systemic_afterload_compliance),
             pulmonary_afterload_compliance: r
                 .mockloop_setpoint
-                .as_ref()
-                .map(|s| s.pulmonary_afterload_compliance),
+                .enable
+                .then_some(r.mockloop_setpoint.pulmonary_afterload_compliance),
+
+            // Metadata
             simulation_time: 0.0,
             time: r.time,
             experiment_id: String::from(uuid),

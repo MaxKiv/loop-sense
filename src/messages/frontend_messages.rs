@@ -12,19 +12,28 @@ use crate::control::ControllerReport;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Report {
+    // Sensor data
     pulmonary_preload_pressure_mmhg: f32,
     systemic_preload_pressure_mmhg: f32,
     pulmonary_afterload_pressure_mmhg: f32,
     systemic_afterload_pressure_mmhg: f32,
     systemic_flow_l_per_min: f32,
     pulmonary_flow_l_per_min: f32,
+
+    // Heart controller
+    heart_controller_enable: bool,
     heart_rate: Option<f32>,
     pressure: Option<f32>,
     systole_ratio: Option<f32>,
+
+    // Mockloop controller
+    mockloop_controller_enable: bool,
     systemic_resistance: Option<f32>,
     pulmonary_resistance: Option<f32>,
     systemic_afterload_compliance: Option<f32>,
     pulmonary_afterload_compliance: Option<f32>,
+
+    // Metadata
     time: i64,
     experiment_id: String,
     experiment_name: String,
@@ -38,6 +47,7 @@ impl From<ControllerReport> for Report {
         let uuid = r.experiment.id.as_hyphenated().encode_lower(&mut buf);
 
         Self {
+            // Sensor data
             pulmonary_preload_pressure_mmhg: r.measurements.pulmonary_preload_pressure.get::<bar>(),
             systemic_preload_pressure_mmhg: r.measurements.systemic_preload_pressure.get::<bar>(),
             pulmonary_afterload_pressure_mmhg: r
@@ -50,28 +60,43 @@ impl From<ControllerReport> for Report {
                 .get::<bar>(),
             systemic_flow_l_per_min: r.measurements.systemic_flow.get::<liter_per_minute>(),
             pulmonary_flow_l_per_min: r.measurements.pulmonary_flow.get::<liter_per_minute>(),
-            heart_rate: r
-                .heart_controller_setpoint
-                .as_ref()
-                .map(|s| s.heart_rate.get::<cycle_per_minute>()),
+
+            // Heart controller
+            heart_controller_enable: r.heart_controller_setpoint.enable,
+            heart_rate: r.heart_controller_setpoint.enable.then_some(
+                r.heart_controller_setpoint
+                    .heart_rate
+                    .get::<cycle_per_minute>(),
+            ),
             pressure: r
                 .heart_controller_setpoint
-                .as_ref()
-                .map(|s| s.pressure.get::<bar>()),
+                .enable
+                .then_some(r.heart_controller_setpoint.pressure.get::<bar>()),
             systole_ratio: r
                 .heart_controller_setpoint
-                .as_ref()
-                .map(|s| s.systole_ratio),
-            systemic_resistance: r.mockloop_setpoint.as_ref().map(|s| s.systemic_resistance),
-            pulmonary_resistance: r.mockloop_setpoint.as_ref().map(|s| s.pulmonary_resistance),
+                .enable
+                .then_some(r.heart_controller_setpoint.systole_ratio),
+
+            // Mockloop controller
+            mockloop_controller_enable: r.mockloop_setpoint.enable,
+            systemic_resistance: r
+                .mockloop_setpoint
+                .enable
+                .then_some(r.mockloop_setpoint.systemic_resistance),
+            pulmonary_resistance: r
+                .mockloop_setpoint
+                .enable
+                .then_some(r.mockloop_setpoint.pulmonary_resistance),
             systemic_afterload_compliance: r
                 .mockloop_setpoint
-                .as_ref()
-                .map(|s| s.systemic_afterload_compliance),
+                .enable
+                .then_some(r.mockloop_setpoint.systemic_afterload_compliance),
             pulmonary_afterload_compliance: r
                 .mockloop_setpoint
-                .as_ref()
-                .map(|s| s.pulmonary_afterload_compliance),
+                .enable
+                .then_some(r.mockloop_setpoint.pulmonary_afterload_compliance),
+
+            // Metadata
             time: r.time.timestamp_nanos_opt().unwrap_or(0i64),
             experiment_id: uuid.to_string(),
             experiment_name: r.experiment.name,
@@ -83,15 +108,16 @@ impl From<ControllerReport> for Report {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct FrontendSetpoint {
     /// Should the mockloop controller be enabled?
-    pub mockloop_setpoint: Option<MockloopSetpoint>,
-    pub heart_controller_setpoint: Option<HeartControllerSetpoint>,
+    pub mockloop_setpoint: MockloopSetpoint,
+    /// Should the heart controller be enabled?
+    pub heart_controller_setpoint: HeartControllerSetpoint,
 }
 
 impl From<love_letter::Setpoint> for FrontendSetpoint {
     fn from(setpoint: love_letter::Setpoint) -> Self {
         Self {
-            mockloop_setpoint: setpoint.mockloop_setpoint.map(Into::into),
-            heart_controller_setpoint: setpoint.heart_controller_setpoint.map(Into::into),
+            mockloop_setpoint: setpoint.mockloop_setpoint.into(),
+            heart_controller_setpoint: setpoint.heart_controller_setpoint.into(),
         }
     }
 }
@@ -99,8 +125,8 @@ impl From<love_letter::Setpoint> for FrontendSetpoint {
 impl From<FrontendSetpoint> for love_letter::Setpoint {
     fn from(setpoint: FrontendSetpoint) -> Self {
         Self {
-            mockloop_setpoint: setpoint.mockloop_setpoint.map(Into::into),
-            heart_controller_setpoint: setpoint.heart_controller_setpoint.map(Into::into),
+            mockloop_setpoint: setpoint.mockloop_setpoint.into(),
+            heart_controller_setpoint: setpoint.heart_controller_setpoint.into(),
         }
     }
 }
@@ -108,6 +134,8 @@ impl From<FrontendSetpoint> for love_letter::Setpoint {
 /// Setpoint for the mockloop hemodynamics controller
 #[derive(Debug, Deserialize, Serialize, Clone, Copy)]
 pub struct MockloopSetpoint {
+    /// Enable the controller?
+    pub enable: bool,
     pub systemic_resistance: f32,
     pub pulmonary_resistance: f32,
     pub systemic_afterload_compliance: f32,
@@ -117,6 +145,8 @@ pub struct MockloopSetpoint {
 /// Setpoint for the pneumatic heart prototype controller
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct HeartControllerSetpoint {
+    /// Enable the controller?
+    pub enable: bool,
     /// Desired heart rate
     pub heart_rate: Frequency,
     /// Desired regulator pressure
@@ -126,6 +156,7 @@ pub struct HeartControllerSetpoint {
 }
 
 pub struct FrontendMockloopSetpoint {
+    enable: bool,
     systemic_mmhg_s_per_l: f32,
     pulmonary_mmhg_s_per_l: f32,
     systemic_afterload_compliance_l_per_mmhg: f32,
@@ -134,6 +165,7 @@ pub struct FrontendMockloopSetpoint {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct FrontendHeartControllerSetpoint {
+    enable: bool,
     heart_rate: f32,
     pressure: f32,
     systole_ratio: f32,
@@ -147,6 +179,7 @@ pub struct FrontendExperimentSetpoint {
 impl From<FrontendMockloopSetpoint> for MockloopSetpoint {
     fn from(frontend: FrontendMockloopSetpoint) -> Self {
         MockloopSetpoint {
+            enable: frontend.enable,
             systemic_resistance: frontend.systemic_mmhg_s_per_l,
             pulmonary_resistance: frontend.pulmonary_mmhg_s_per_l,
             systemic_afterload_compliance: frontend.systemic_afterload_compliance_l_per_mmhg,
@@ -158,6 +191,7 @@ impl From<FrontendMockloopSetpoint> for MockloopSetpoint {
 impl From<love_letter::MockloopSetpoint> for MockloopSetpoint {
     fn from(mcu: love_letter::MockloopSetpoint) -> Self {
         Self {
+            enable: mcu.enable,
             systemic_resistance: mcu.systemic_resistance,
             pulmonary_resistance: mcu.pulmonary_resistance,
             systemic_afterload_compliance: mcu.systemic_afterload_compliance,
@@ -169,6 +203,7 @@ impl From<love_letter::MockloopSetpoint> for MockloopSetpoint {
 impl From<MockloopSetpoint> for love_letter::MockloopSetpoint {
     fn from(val: MockloopSetpoint) -> Self {
         love_letter::MockloopSetpoint {
+            enable: val.enable,
             systemic_resistance: val.systemic_resistance,
             pulmonary_resistance: val.pulmonary_resistance,
             systemic_afterload_compliance: val.systemic_afterload_compliance,
@@ -180,6 +215,7 @@ impl From<MockloopSetpoint> for love_letter::MockloopSetpoint {
 impl From<FrontendHeartControllerSetpoint> for HeartControllerSetpoint {
     fn from(frontend: FrontendHeartControllerSetpoint) -> Self {
         HeartControllerSetpoint {
+            enable: frontend.enable,
             heart_rate: Frequency::new::<cycle_per_minute>(frontend.heart_rate),
             pressure: Pressure::new::<millibar>(frontend.pressure),
             systole_ratio: frontend.systole_ratio,
@@ -190,6 +226,7 @@ impl From<FrontendHeartControllerSetpoint> for HeartControllerSetpoint {
 impl From<HeartControllerSetpoint> for love_letter::HeartControllerSetpoint {
     fn from(val: HeartControllerSetpoint) -> Self {
         love_letter::HeartControllerSetpoint {
+            enable: val.enable,
             heart_rate: val.heart_rate,
             pressure: val.pressure,
             systole_ratio: val.systole_ratio,
@@ -200,6 +237,7 @@ impl From<HeartControllerSetpoint> for love_letter::HeartControllerSetpoint {
 impl From<love_letter::HeartControllerSetpoint> for HeartControllerSetpoint {
     fn from(mcu: love_letter::HeartControllerSetpoint) -> Self {
         Self {
+            enable: mcu.enable,
             heart_rate: mcu.heart_rate,
             pressure: mcu.pressure,
             systole_ratio: mcu.systole_ratio,
