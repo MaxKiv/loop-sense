@@ -16,5 +16,7 @@
     wget
     ripgrep
     eza
+    just
+    direnv
   ];
 }
