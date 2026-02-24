@@ -15,7 +15,7 @@ pub struct Experiment {
     pub duration_seconds: Duration,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Default)]
 pub struct ExperimentStatus {
     is_running: bool,
     experiment_id: Uuid,
@@ -34,7 +34,7 @@ impl From<&Experiment> for ExperimentStatus {
         } else {
             exp.duration_seconds
         };
-        
+
         Self {
             is_running: exp.is_running,
             experiment_id: exp.id,

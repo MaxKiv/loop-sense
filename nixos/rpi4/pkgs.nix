@@ -20,6 +20,8 @@
     nginx
     htop
     zenith
+    just
+    direnv
   ];
 }
 

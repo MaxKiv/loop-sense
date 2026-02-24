@@ -1,11 +1,11 @@
-use crate::experiment::ExperimentStatus;
-use crate::http::messages::{ExperimentList, ExperimentListFromDB, ExperimentFromDB};
-use crate::{AxumState, http::messages::HeartbeatMessage, messages::frontend_messages::Report};
 use crate::database::secrets::*;
+use crate::experiment::ExperimentStatus;
+use crate::http::messages::{ExperimentFromDB, ExperimentList, ExperimentListFromDB};
+use crate::{AxumState, http::messages::HeartbeatMessage, messages::frontend_messages::Report};
 use axum::Json;
+use axum::extract::Path;
 use axum::http::{StatusCode, header};
 use axum::response::Response;
-use axum::extract::Path;
 use serde_json::Value;
 use tracing::*;
 
@@ -50,7 +50,8 @@ pub async fn get_experiment_status(
             let status: ExperimentStatus = exp.into();
             Ok(Json(status))
         } else {
-            Err(StatusCode::NO_CONTENT)
+            let status = ExperimentStatus::default();
+            Ok(Json(status))
         }
     } else {
         error!("Unable to fetch the current experiment");
@@ -109,17 +110,21 @@ pub async fn download_experiment_csv(
     // Query data from InfluxDB and convert to CSV
     match query_table_as_csv(&table_name).await {
         Ok(csv_content) => {
-            info!("Successfully generated CSV for table: {} ({} bytes)", table_name, csv_content.len());
-            
+            info!(
+                "Successfully generated CSV for table: {} ({} bytes)",
+                table_name,
+                csv_content.len()
+            );
+
             let filename = format!("{}.csv", table_name);
-            
+
             // Build response with appropriate headers
             Ok(Response::builder()
                 .status(StatusCode::OK)
                 .header(header::CONTENT_TYPE, "text/csv")
                 .header(
                     header::CONTENT_DISPOSITION,
-                    format!("attachment; filename=\"{}\"", filename)
+                    format!("attachment; filename=\"{}\"", filename),
                 )
                 .body(csv_content.into())
                 .unwrap())
@@ -152,7 +157,7 @@ async fn query_experiments_from_influxdb() -> Result<Vec<ExperimentFromDB>, Stri
     let url = format!("{}/api/v3/query_sql", DB_URI);
     info!("Querying InfluxDB at: {}", url);
     info!("Query: {}", list_tables_query);
-    
+
     let response = client
         .post(&url)
         .header("Authorization", format!("Bearer {}", DB_ACCESS_TOKEN))
@@ -168,8 +173,14 @@ async fn query_experiments_from_influxdb() -> Result<Vec<ExperimentFromDB>, Stri
 
     if !response.status().is_success() {
         let status = response.status();
-        let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-        error!("InfluxDB query failed with status {}: {}", status, error_text);
+        let error_text = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Unknown error".to_string());
+        error!(
+            "InfluxDB query failed with status {}: {}",
+            status, error_text
+        );
         return Err(format!("InfluxDB query failed with status: {}", status));
     }
 
@@ -178,13 +189,25 @@ async fn query_experiments_from_influxdb() -> Result<Vec<ExperimentFromDB>, Stri
         .await
         .map_err(|e| format!("Failed to parse InfluxDB response: {}", e))?;
 
-    info!("InfluxDB response: {}", serde_json::to_string_pretty(&tables_result).unwrap_or_else(|_| "Failed to serialize".to_string()));
+    info!(
+        "InfluxDB response: {}",
+        serde_json::to_string_pretty(&tables_result)
+            .unwrap_or_else(|_| "Failed to serialize".to_string())
+    );
 
     // Extract table names from response
-    let table_names = extract_table_names(&tables_result)
-        .ok_or_else(|| format!("Failed to extract table names from response: {:?}", tables_result))?;
+    let table_names = extract_table_names(&tables_result).ok_or_else(|| {
+        format!(
+            "Failed to extract table names from response: {:?}",
+            tables_result
+        )
+    })?;
 
-    info!("Found {} experiment tables: {:?}", table_names.len(), table_names);
+    info!(
+        "Found {} experiment tables: {:?}",
+        table_names.len(),
+        table_names
+    );
 
     if table_names.is_empty() {
         return Ok(Vec::new());
@@ -215,12 +238,13 @@ fn extract_table_names(response: &Value) -> Option<Vec<String>> {
         let tables: Vec<String> = results
             .iter()
             .filter_map(|result| {
-                result.get("table_name")
+                result
+                    .get("table_name")
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_string())
             })
             .collect();
-        
+
         info!("Extracted {} table names from response", tables.len());
         if !tables.is_empty() {
             return Some(tables);
@@ -272,7 +296,10 @@ async fn get_experiment_metadata(
         .map_err(|e| format!("Failed to query first record: {}", e))?;
 
     if !first_response.status().is_success() {
-        return Err(format!("First record query failed: {}", first_response.status()));
+        return Err(format!(
+            "First record query failed: {}",
+            first_response.status()
+        ));
     }
 
     let first_data: Value = first_response
@@ -295,7 +322,10 @@ async fn get_experiment_metadata(
         .map_err(|e| format!("Failed to query last record: {}", e))?;
 
     if !last_response.status().is_success() {
-        return Err(format!("Last record query failed: {}", last_response.status()));
+        return Err(format!(
+            "Last record query failed: {}",
+            last_response.status()
+        ));
     }
 
     let last_data: Value = last_response
@@ -325,7 +355,7 @@ async fn get_experiment_metadata(
             .map_err(|e| format!("Failed to parse start time '{}': {}", start_time_str, e))?;
         let end_time = chrono::DateTime::parse_from_rfc3339(&end_time_str)
             .map_err(|e| format!("Failed to parse end time '{}': {}", end_time_str, e))?;
-        
+
         let duration_seconds = (end_time - start_time).num_milliseconds() as f64 / 1000.0;
 
         Ok(Some(ExperimentFromDB {
@@ -356,10 +386,17 @@ fn extract_first_record(response: &Value) -> Option<FirstRecordData> {
         if let Some(first) = results.first() {
             let experiment_id = first.get("experiment_id")?.as_str()?.to_string();
             let experiment_name = first.get("experiment_name")?.as_str()?.to_string();
-            let description = first.get("experiment_description").and_then(|d| d.as_str()).unwrap_or("").to_string();
+            let description = first
+                .get("experiment_description")
+                .and_then(|d| d.as_str())
+                .unwrap_or("")
+                .to_string();
             let start_time = first.get("time")?.as_str()?.to_string();
-            
-            info!("Extracted first record: id={}, name={}, time={}", experiment_id, experiment_name, start_time);
+
+            info!(
+                "Extracted first record: id={}, name={}, time={}",
+                experiment_id, experiment_name, start_time
+            );
             return Some(FirstRecordData {
                 experiment_id,
                 experiment_name,
@@ -397,13 +434,13 @@ fn extract_last_time(response: &Value) -> Option<String> {
 /// Query a table from InfluxDB and convert to CSV format
 async fn query_table_as_csv(table_name: &str) -> Result<String, String> {
     let client = reqwest::Client::new();
-    
+
     // Query all data from the table ordered by time
     let query = format!(r#"SELECT * FROM "{}" ORDER BY time ASC"#, table_name);
-    
+
     let url = format!("{}/api/v3/query_sql", DB_URI);
     info!("Querying table {} for CSV export", table_name);
-    
+
     let response = client
         .post(&url)
         .header("Authorization", format!("Bearer {}", DB_ACCESS_TOKEN))
@@ -419,8 +456,14 @@ async fn query_table_as_csv(table_name: &str) -> Result<String, String> {
 
     if !response.status().is_success() {
         let status = response.status();
-        let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-        error!("InfluxDB query failed with status {}: {}", status, error_text);
+        let error_text = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Unknown error".to_string());
+        error!(
+            "InfluxDB query failed with status {}: {}",
+            status, error_text
+        );
         return Err(format!("InfluxDB query failed: {}", status));
     }
 
@@ -435,15 +478,20 @@ async fn query_table_as_csv(table_name: &str) -> Result<String, String> {
 
 /// Convert InfluxDB JSON response to CSV format
 fn json_to_csv(data: &Value, table_name: &str) -> Result<String, String> {
-    let records = data.as_array()
+    let records = data
+        .as_array()
         .ok_or_else(|| "Response is not an array".to_string())?;
 
     if records.is_empty() {
-        return Err(format!("No data found for experiment table '{}'", table_name));
+        return Err(format!(
+            "No data found for experiment table '{}'",
+            table_name
+        ));
     }
 
     // Extract column names from the first record
-    let first_record = records.first()
+    let first_record = records
+        .first()
         .ok_or_else(|| "Empty records array".to_string())?
         .as_object()
         .ok_or_else(|| "First record is not an object".to_string())?;
@@ -453,14 +501,15 @@ fn json_to_csv(data: &Value, table_name: &str) -> Result<String, String> {
 
     // Build CSV content
     let mut csv = String::new();
-    
+
     // Write header
     csv.push_str(&columns.join(","));
     csv.push('\n');
 
     // Write data rows
     for record in records {
-        let obj = record.as_object()
+        let obj = record
+            .as_object()
             .ok_or_else(|| "Record is not an object".to_string())?;
 
         let row: Vec<String> = columns
@@ -476,7 +525,11 @@ fn json_to_csv(data: &Value, table_name: &str) -> Result<String, String> {
         csv.push('\n');
     }
 
-    info!("Generated CSV with {} rows and {} columns", records.len(), columns.len());
+    info!(
+        "Generated CSV with {} rows and {} columns",
+        records.len(),
+        columns.len()
+    );
     Ok(csv)
 }
 
