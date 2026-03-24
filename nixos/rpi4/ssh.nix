@@ -29,7 +29,7 @@
 
   # Slight hardening
   services.openssh.settings = {
-    PermitRootLogin = "prohibit-password";
-    PasswordAuthentication = false;
+    PermitRootLogin = "yes";
+    PasswordAuthentication = true;
   };
 }
