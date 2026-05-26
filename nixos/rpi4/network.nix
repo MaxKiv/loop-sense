@@ -33,12 +33,15 @@
       # Hand out addresses in same subnet, excluding .4
       dhcp-range = "192.168.0.50,192.168.0.150,255.255.255.0,12h";
 
-      # Optional: tell clients the gateway is the Pi (useful if you later enable NAT)
+      # Tell clients the gateway & dns server is the Pi 
       dhcp-option = [
         "option:router,192.168.0.4"
         # Optional DNS advertised to client:
-        # "option:dns-server,192.168.0.4"
+        "option:dns-server,192.168.0.4"
       ];
+
+      # Serve the HHH dashboard at http://hhh
+      address = "/hhh/192.168.0.4";
     };
   };
 
