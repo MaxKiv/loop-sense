@@ -1,4 +1,4 @@
-use crate::control::ControllerReport;
+use crate::{control::ControllerReport, messages::frontend_messages::FrontendSetpoint};
 use chrono::TimeDelta;
 use love_letter::{Report, Setpoint};
 use tokio::{
@@ -6,7 +6,7 @@ use tokio::{
         mpsc::{self},
         watch,
     },
-    time::{Duration, timeout},
+    time::{Duration, MissedTickBehavior, timeout},
 };
 use tracing::*;
 
@@ -31,8 +31,10 @@ pub async fn control_loop(
     db_report_sender: mpsc::Sender<ControllerReport>,
 ) {
     let mut ticker = tokio::time::interval(CONTROL_LOOP_PERIOD);
+    ticker.set_missed_tick_behavior(MissedTickBehavior::Burst);
 
     let mut current_experiment: Option<Experiment> = None;
+    let mut current_setpoint: Option<FrontendSetpoint> = None;
 
     loop {
         // Did the experiment change?
@@ -50,13 +52,19 @@ pub async fn control_loop(
         }
 
         // Check for new setpoint from frontend
-        if let Ok(frontend_setpoint) = axum_state.setpoint.lock() {
-            // Construct setpoint for MCU
-            let mcu_setpoint: love_letter::Setpoint = (*frontend_setpoint).clone().into();
+        if let Ok(new_setpoint) = axum_state.setpoint.lock() {
+            if let Some(current) = current_setpoint.as_mut() {
+                // Update MCU setpoint if frontend produced a new setpoint
+                if *current != *new_setpoint {
+                    *current = new_setpoint.clone();
+                    // Construct setpoint for MCU
+                    let mcu_setpoint: love_letter::Setpoint = (*new_setpoint).clone().into();
 
-            // Notify mcu communication task of the new mcu setpoint
-            if let Err(err) = mcu_setpoint_sender.send(mcu_setpoint) {
-                error!("unable to notify mcu communication task of new setpoint: {err}");
+                    // Notify mcu communication task of the new mcu setpoint
+                    if let Err(err) = mcu_setpoint_sender.send(mcu_setpoint) {
+                        error!("unable to notify mcu communication task of new setpoint: {err}");
+                    }
+                }
             }
         }
 
@@ -96,10 +104,9 @@ pub async fn control_loop(
                     ..
                 }) = current_experiment
                 {
-                    info!("An Experiment is running: writing to DB");
                     if is_running {
                         info!(
-                            "Experiment {id} - {name} is running for {}s, writing report to DB: {:?}",
+                            "experiment {id} - {name} is running for {}s, writing report to db: {:?}",
                             duration_seconds.as_seconds_f32(),
                             report.clone()
                         );
@@ -107,6 +114,8 @@ pub async fn control_loop(
                         if let Err(err) = db_report_sender.send(report).await {
                             error!("Unable to send latest report to database task: {err}");
                         }
+                    } else {
+                        info!("experiment {id} - {name} is NOT, skipping report db write",);
                     }
                 } else {
                     info!("No experiment currently running, skipping DB write...");

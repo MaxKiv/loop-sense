@@ -105,7 +105,7 @@ impl From<ControllerReport> for Report {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct FrontendSetpoint {
     /// Should the mockloop controller be enabled?
     pub mockloop_setpoint: MockloopSetpoint,
@@ -132,7 +132,7 @@ impl From<FrontendSetpoint> for love_letter::Setpoint {
 }
 
 /// Setpoint for the mockloop hemodynamics controller
-#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq)]
 pub struct MockloopSetpoint {
     /// Enable the controller?
     pub enable: bool,
@@ -143,7 +143,7 @@ pub struct MockloopSetpoint {
 }
 
 /// Setpoint for the pneumatic heart prototype controller
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct HeartControllerSetpoint {
     /// Enable the controller?
     pub enable: bool,

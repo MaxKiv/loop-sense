@@ -2,20 +2,20 @@ use crate::axumstate::AxumState;
 use crate::control::controller::control_loop;
 use crate::database::db_communication_task::communicate_with_db;
 use crate::experiment::manage::manage_experiments;
-use crate::http::CONVEX_URI;
 use crate::http::get::*;
 use crate::http::messages::ExperimentList;
 use crate::http::post::*;
 use crate::http::ws::handle_websocket_request;
 use crate::messages::frontend_messages;
-use crate::micro_communication_task::communicate_with_micro;
+use crate::micro_communication_task::receive_reports_from_mcu;
+use crate::micro_communication_task::send_setpoints_to_mcu;
 use axum::Router;
 use axum::routing::{any, get, post};
 use chrono::Utc;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use tokio::task;
-use tower_http::cors::{AllowOrigin, Any, CorsLayer};
+use tower_http::cors::{Any, CorsLayer};
 use tracing::*;
 use tracing_subscriber::FmtSubscriber;
 
@@ -71,11 +71,9 @@ async fn main() {
         start_time: Arc::new(Utc::now()),
     };
 
-    // Delegate all microcontroller communication to a separate tokio task
-    task::spawn(communicate_with_micro(
-        mcu_setpoint_receiver,
-        mcu_report_sender,
-    ));
+    // Spawn MCU communication tasks
+    task::spawn(send_setpoints_to_mcu(mcu_setpoint_receiver));
+    task::spawn(receive_reports_from_mcu(mcu_report_sender));
 
     // Start the high level control loop, probably the most important routine of this application
     #[cfg(feature = "sim-mcu")]
