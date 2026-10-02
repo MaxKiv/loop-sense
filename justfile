@@ -90,3 +90,6 @@ ssh:
 # SSH into rpi4
 ssh4:
     ssh -v root@192.168.0.4
+
+copy-loop-sense:
+    rsync -av --exclude 'influxdb-images.tar' --exclude '.git' --exclude '.direnv' --exclude 'data' --exclude 'nixos' --exclude '.influxdb3' ./ root@192.168.0.4:/root/loop_sense
