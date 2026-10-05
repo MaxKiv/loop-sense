@@ -1,9 +1,9 @@
+use love_letter::{HeartControllerSetpoint, MockloopSetpoint};
 use serde::{Deserialize, Serialize};
-use tracing::error;
 use uom::si::pressure::millibar;
 use uom::si::{
     f32::{Frequency, Pressure},
-    frequency::{cycle_per_minute, hertz},
+    frequency::cycle_per_minute,
     pressure::bar,
     volume_rate::liter_per_minute,
 };
@@ -19,19 +19,22 @@ pub struct Report {
     systemic_afterload_pressure_mmhg: f32,
     systemic_flow_l_per_min: f32,
     pulmonary_flow_l_per_min: f32,
+    heart_actual_pressure_mbar: f32,
+    systemic_compliance_actual_pressure_mbar: f32,
+    pulmonary_compliance_actual_pressure_mbar: f32,
 
     // Heart controller
     heart_controller_enable: bool,
     heart_rate: Option<f32>,
-    pressure: Option<f32>,
+    pressure_mbar: Option<f32>,
     systole_ratio: Option<f32>,
 
     // Mockloop controller
     mockloop_controller_enable: bool,
     systemic_resistance: Option<f32>,
     pulmonary_resistance: Option<f32>,
-    systemic_afterload_compliance: Option<f32>,
-    pulmonary_afterload_compliance: Option<f32>,
+    systemic_compliance_mbar: Option<f32>,
+    pulmonary_compliance_mbar: Option<f32>,
 
     // Metadata
     time: i64,
@@ -61,6 +64,16 @@ impl From<ControllerReport> for Report {
             systemic_flow_l_per_min: r.measurements.systemic_flow.get::<liter_per_minute>(),
             pulmonary_flow_l_per_min: r.measurements.pulmonary_flow.get::<liter_per_minute>(),
 
+            heart_actual_pressure_mbar: r.measurements.heart_actual_pressure.get::<millibar>(),
+            systemic_compliance_actual_pressure_mbar: r
+                .measurements
+                .systemic_compliance_actual_pressure
+                .get::<millibar>(),
+            pulmonary_compliance_actual_pressure_mbar: r
+                .measurements
+                .pulmonary_compliance_actual_pressure
+                .get::<millibar>(),
+
             // Heart controller
             heart_controller_enable: r.heart_controller_setpoint.enable,
             heart_rate: r.heart_controller_setpoint.enable.then_some(
@@ -68,7 +81,7 @@ impl From<ControllerReport> for Report {
                     .heart_rate
                     .get::<cycle_per_minute>(),
             ),
-            pressure: r
+            pressure_mbar: r
                 .heart_controller_setpoint
                 .enable
                 .then_some(r.heart_controller_setpoint.pressure.get::<bar>()),
@@ -87,14 +100,16 @@ impl From<ControllerReport> for Report {
                 .mockloop_setpoint
                 .enable
                 .then_some(r.mockloop_setpoint.pulmonary_resistance),
-            systemic_afterload_compliance: r
-                .mockloop_setpoint
-                .enable
-                .then_some(r.mockloop_setpoint.systemic_afterload_compliance),
-            pulmonary_afterload_compliance: r
-                .mockloop_setpoint
-                .enable
-                .then_some(r.mockloop_setpoint.pulmonary_afterload_compliance),
+            systemic_compliance_mbar: r.mockloop_setpoint.enable.then_some(
+                r.mockloop_setpoint
+                    .systemic_afterload_compliance
+                    .get::<millibar>(),
+            ),
+            pulmonary_compliance_mbar: r.mockloop_setpoint.enable.then_some(
+                r.mockloop_setpoint
+                    .pulmonary_afterload_compliance
+                    .get::<millibar>(),
+            ),
 
             // Metadata
             time: r.time.timestamp_nanos_opt().unwrap_or(0i64),
@@ -131,36 +146,13 @@ impl From<FrontendSetpoint> for love_letter::Setpoint {
     }
 }
 
-/// Setpoint for the mockloop hemodynamics controller
-#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq)]
-pub struct MockloopSetpoint {
-    /// Enable the controller?
-    pub enable: bool,
-    pub systemic_resistance: f32,
-    pub pulmonary_resistance: f32,
-    pub systemic_afterload_compliance: f32,
-    pub pulmonary_afterload_compliance: f32,
-}
-
-/// Setpoint for the pneumatic heart prototype controller
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
-pub struct HeartControllerSetpoint {
-    /// Enable the controller?
-    pub enable: bool,
-    /// Desired heart rate
-    pub heart_rate: Frequency,
-    /// Desired regulator pressure
-    pub pressure: Pressure,
-    /// Ratio of systole duration to total cardiac phase duration
-    pub systole_ratio: f32,
-}
-
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct FrontendMockloopSetpoint {
     enable: bool,
-    systemic_mmhg_s_per_l: f32,
-    pulmonary_mmhg_s_per_l: f32,
-    systemic_afterload_compliance_l_per_mmhg: f32,
-    pulmonary_afterload_compliance_l_per_mmhg: f32,
+    systemic_resistance_mmhg_s_per_l: f32,
+    pulmonary_resistance_mmhg_s_per_l: f32,
+    systemic_afterload_compliance_mbar: f32,
+    pulmonary_afterload_compliance_mbar: f32,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -180,34 +172,14 @@ impl From<FrontendMockloopSetpoint> for MockloopSetpoint {
     fn from(frontend: FrontendMockloopSetpoint) -> Self {
         MockloopSetpoint {
             enable: frontend.enable,
-            systemic_resistance: frontend.systemic_mmhg_s_per_l,
-            pulmonary_resistance: frontend.pulmonary_mmhg_s_per_l,
-            systemic_afterload_compliance: frontend.systemic_afterload_compliance_l_per_mmhg,
-            pulmonary_afterload_compliance: frontend.pulmonary_afterload_compliance_l_per_mmhg,
-        }
-    }
-}
-
-impl From<love_letter::MockloopSetpoint> for MockloopSetpoint {
-    fn from(mcu: love_letter::MockloopSetpoint) -> Self {
-        Self {
-            enable: mcu.enable,
-            systemic_resistance: mcu.systemic_resistance,
-            pulmonary_resistance: mcu.pulmonary_resistance,
-            systemic_afterload_compliance: mcu.systemic_afterload_compliance,
-            pulmonary_afterload_compliance: mcu.pulmonary_afterload_compliance,
-        }
-    }
-}
-
-impl From<MockloopSetpoint> for love_letter::MockloopSetpoint {
-    fn from(val: MockloopSetpoint) -> Self {
-        love_letter::MockloopSetpoint {
-            enable: val.enable,
-            systemic_resistance: val.systemic_resistance,
-            pulmonary_resistance: val.pulmonary_resistance,
-            systemic_afterload_compliance: val.systemic_afterload_compliance,
-            pulmonary_afterload_compliance: val.pulmonary_afterload_compliance,
+            systemic_resistance: frontend.systemic_resistance_mmhg_s_per_l,
+            pulmonary_resistance: frontend.pulmonary_resistance_mmhg_s_per_l,
+            systemic_afterload_compliance: Pressure::new::<millibar>(
+                frontend.systemic_afterload_compliance_mbar,
+            ),
+            pulmonary_afterload_compliance: Pressure::new::<millibar>(
+                frontend.pulmonary_afterload_compliance_mbar,
+            ),
         }
     }
 }
@@ -219,28 +191,6 @@ impl From<FrontendHeartControllerSetpoint> for HeartControllerSetpoint {
             heart_rate: Frequency::new::<cycle_per_minute>(frontend.heart_rate),
             pressure: Pressure::new::<millibar>(frontend.pressure),
             systole_ratio: frontend.systole_ratio,
-        }
-    }
-}
-
-impl From<HeartControllerSetpoint> for love_letter::HeartControllerSetpoint {
-    fn from(val: HeartControllerSetpoint) -> Self {
-        love_letter::HeartControllerSetpoint {
-            enable: val.enable,
-            heart_rate: val.heart_rate,
-            pressure: val.pressure,
-            systole_ratio: val.systole_ratio,
-        }
-    }
-}
-
-impl From<love_letter::HeartControllerSetpoint> for HeartControllerSetpoint {
-    fn from(mcu: love_letter::HeartControllerSetpoint) -> Self {
-        Self {
-            enable: mcu.enable,
-            heart_rate: mcu.heart_rate,
-            pressure: mcu.pressure,
-            systole_ratio: mcu.systole_ratio,
         }
     }
 }

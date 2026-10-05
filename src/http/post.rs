@@ -1,7 +1,7 @@
 use crate::axumstate::AxumState;
 use crate::experiment::{self};
 use crate::messages::frontend_messages::{
-    FrontendHeartControllerSetpoint, HeartControllerSetpoint, MockloopSetpoint,
+    FrontendHeartControllerSetpoint, FrontendMockloopSetpoint,
 };
 use axum::Json;
 use axum::http::StatusCode;
@@ -11,7 +11,7 @@ use tracing::*;
 #[axum::debug_handler]
 pub async fn post_loop_setpoint(
     state: axum::extract::State<AxumState>,
-    Json(new_setpoint): Json<MockloopSetpoint>,
+    Json(new_setpoint): Json<FrontendMockloopSetpoint>,
 ) -> StatusCode {
     // Attempt to lock mutex guarding the latest setpoint
     if let Ok(mut setpoint) = state.setpoint.lock() {
@@ -21,7 +21,7 @@ pub async fn post_loop_setpoint(
             new_setpoint
         );
 
-        setpoint.mockloop_setpoint = new_setpoint;
+        setpoint.mockloop_setpoint = new_setpoint.into();
         return StatusCode::OK;
     }
     // Unable to lock mutex, or mutex was poisoned

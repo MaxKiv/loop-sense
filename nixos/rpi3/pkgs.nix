@@ -16,7 +16,13 @@
     wget
     ripgrep
     eza
+    nodejs_24
+    nginx
+    htop
+    zenith
     just
     direnv
+    busybox
+    dig
   ];
 }

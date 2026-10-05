@@ -11,6 +11,7 @@
   # Enable openSSH service
   services.openssh.enable = true;
 
+
   # Add authorized keys
   users.users.${username} = {
     openssh.authorizedKeys.keys = [
@@ -29,6 +30,7 @@
 
   # Slight hardening
   services.openssh.settings = {
+    UseDns = false;           # Skip reverse DNS lookups
     PermitRootLogin = "yes";
     PasswordAuthentication = true;
   };

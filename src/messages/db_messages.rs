@@ -1,5 +1,9 @@
 use influxdb::{InfluxDbWriteable, Timestamp};
-use uom::si::{frequency::cycle_per_minute, pressure::bar, volume_rate::liter_per_minute};
+use uom::si::{
+    frequency::cycle_per_minute,
+    pressure::{bar, millibar, millimeter_of_mercury},
+    volume_rate::liter_per_minute,
+};
 
 use crate::control::ControllerReport;
 
@@ -16,7 +20,7 @@ pub struct DatabaseRecord {
     // Heart controller
     heart_controller_enable: bool,
     heart_rate: f32,
-    pressure: f32,
+    pressure_mbar: f32,
     systole_ratio: f32,
 
     // Mockloop controller
@@ -47,7 +51,7 @@ impl Default for DatabaseRecord {
             pulmonary_flow_l_per_min: Default::default(),
             heart_controller_enable: Default::default(),
             heart_rate: Default::default(),
-            pressure: Default::default(),
+            pressure_mbar: Default::default(),
             systole_ratio: Default::default(),
             mockloop_controller_enable: Default::default(),
             systemic_resistance: Default::default(),
@@ -70,16 +74,22 @@ impl From<ControllerReport> for DatabaseRecord {
 
         Self {
             // Sensor data
-            pulmonary_preload_pressure_mmhg: r.measurements.pulmonary_preload_pressure.get::<bar>(),
-            systemic_preload_pressure_mmhg: r.measurements.systemic_preload_pressure.get::<bar>(),
+            pulmonary_preload_pressure_mmhg: r
+                .measurements
+                .pulmonary_preload_pressure
+                .get::<millimeter_of_mercury>(),
+            systemic_preload_pressure_mmhg: r
+                .measurements
+                .systemic_preload_pressure
+                .get::<millimeter_of_mercury>(),
             pulmonary_afterload_pressure_mmhg: r
                 .measurements
                 .pulmonary_afterload_pressure
-                .get::<bar>(),
+                .get::<millimeter_of_mercury>(),
             systemic_afterload_pressure_mmhg: r
                 .measurements
                 .systemic_afterload_pressure
-                .get::<bar>(),
+                .get::<millimeter_of_mercury>(),
             systemic_flow_l_per_min: r.measurements.systemic_flow.get::<liter_per_minute>(),
             pulmonary_flow_l_per_min: r.measurements.pulmonary_flow.get::<liter_per_minute>(),
 
@@ -89,15 +99,21 @@ impl From<ControllerReport> for DatabaseRecord {
                 .heart_controller_setpoint
                 .heart_rate
                 .get::<cycle_per_minute>(),
-            pressure: r.heart_controller_setpoint.pressure.get::<bar>(),
+            pressure_mbar: r.heart_controller_setpoint.pressure.get::<millibar>(),
             systole_ratio: r.heart_controller_setpoint.systole_ratio,
 
             // Mockloop controller
             mockloop_controller_enable: r.mockloop_setpoint.enable,
             systemic_resistance: r.mockloop_setpoint.systemic_resistance,
             pulmonary_resistance: r.mockloop_setpoint.pulmonary_resistance,
-            systemic_afterload_compliance_mbar: r.mockloop_setpoint.systemic_afterload_compliance,
-            pulmonary_afterload_compliance_mbar: r.mockloop_setpoint.pulmonary_afterload_compliance,
+            systemic_afterload_compliance_mbar: r
+                .mockloop_setpoint
+                .systemic_afterload_compliance
+                .get::<millibar>(),
+            pulmonary_afterload_compliance_mbar: r
+                .mockloop_setpoint
+                .pulmonary_afterload_compliance
+                .get::<millibar>(),
 
             time: Timestamp::Microseconds(r.time.timestamp_micros() as u128),
             experiment_id: String::from(uuid),

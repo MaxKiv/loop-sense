@@ -53,17 +53,30 @@ pub async fn control_loop(
 
         // Check for new setpoint from frontend
         if let Ok(new_setpoint) = axum_state.setpoint.lock() {
-            if let Some(current) = current_setpoint.as_mut() {
-                // Update MCU setpoint if frontend produced a new setpoint
-                if *current != *new_setpoint {
-                    *current = new_setpoint.clone();
-                    // Construct setpoint for MCU
-                    let mcu_setpoint: love_letter::Setpoint = (*new_setpoint).clone().into();
+            // Update MCU setpoint if frontend produced a new setpoint
+            if current_setpoint
+                .as_mut()
+                .is_none_or(|curr| *curr != *new_setpoint)
+            {
+                warn!("NEW MCU setpoint: {:?}", new_setpoint);
+                warn!(
+                    "NEW Compliance: [{}, {}]mbar",
+                    new_setpoint
+                        .mockloop_setpoint
+                        .systemic_afterload_compliance
+                        .get::<uom::si::pressure::millibar>(),
+                    new_setpoint
+                        .mockloop_setpoint
+                        .pulmonary_afterload_compliance
+                        .get::<uom::si::pressure::millibar>()
+                );
+                current_setpoint = Some(new_setpoint.clone());
+                // Construct setpoint for MCU
+                let mcu_setpoint: love_letter::Setpoint = (*new_setpoint).clone().into();
 
-                    // Notify mcu communication task of the new mcu setpoint
-                    if let Err(err) = mcu_setpoint_sender.send(mcu_setpoint) {
-                        error!("unable to notify mcu communication task of new setpoint: {err}");
-                    }
+                // Notify mcu communication task of the new mcu setpoint
+                if let Err(err) = mcu_setpoint_sender.send(mcu_setpoint) {
+                    error!("unable to notify mcu communication task of new setpoint: {err}");
                 }
             }
         }
@@ -88,7 +101,7 @@ pub async fn control_loop(
                     report_time,
                     current_experiment.clone(),
                 );
-                info!("Exposing Controller Report to axum: {:?}", report.clone());
+                debug!("Exposing Controller Report to axum: {:?}", report.clone());
 
                 // Update /measurement endpoint with latest report
                 if let Ok(mut axum_report) = axum_state.report.lock() {

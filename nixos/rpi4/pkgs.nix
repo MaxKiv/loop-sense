@@ -22,5 +22,8 @@
     zenith
     just
     direnv
+    busybox
+    dig
+    wireless-regdb
   ];
 }

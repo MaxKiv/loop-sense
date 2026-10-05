@@ -1,10 +1,7 @@
 use chrono::{DateTime, Utc};
-use love_letter::Measurements;
+use love_letter::{HeartControllerSetpoint, Measurements, MockloopSetpoint};
 
-use crate::{
-    experiment::Experiment,
-    messages::frontend_messages::{HeartControllerSetpoint, MockloopSetpoint},
-};
+use crate::experiment::Experiment;
 
 pub mod controller;
 
