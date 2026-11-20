@@ -213,5 +213,21 @@
           ./nixos/rpi4
         ];
       };
+
+      # NixOS configuration for rpi4
+      nixosConfigurations.nuc = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = {
+          hostname = "hhh";
+          username = "max";
+          sshPublicKeys = import ./nixos/resources/ssh_public_keys.nix;
+          composePath = ./nixos/nuc/compose.yaml;
+          loopSensePackage = self.packages.default;
+          inherit inputs;
+        };
+        modules = [
+          ./nixos/nuc
+        ];
+      };
     };
 }
